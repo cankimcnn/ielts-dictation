@@ -21,6 +21,11 @@
       <span>听写练习</span>
     </a>
     <nav class="top-actions" aria-label="主要功能">
+      <select id="practiceMode" class="mode-select" aria-label="选择练习模式">
+        <option value="normal">正常学习</option>
+        <option id="historyModeOption" value="history">曾经错过</option>
+        <option value="custom">自定义练习</option>
+      </select>
       <select id="groupSelect" class="group-select" aria-label="选择词库分组"></select>
       <button class="nav-button active" data-view="practice">听写</button>
       <button class="nav-button" data-view="review">错题库 <span id="reviewBadge" class="badge">0</span></button>
@@ -53,6 +58,8 @@
 
         <div id="groupComplete" class="group-complete" hidden>
           <button id="nextGroupButton" class="primary-button" type="button">下一组 →</button>
+          <button id="repeatSessionButton" class="primary-button" type="button" hidden>再练一次</button>
+          <button id="returnNormalButton" class="secondary-button" type="button" hidden>返回正常学习</button>
         </div>
 
         <p id="feedback" class="feedback" aria-live="assertive">按回车提交</p>
@@ -109,8 +116,32 @@
     </form>
   </dialog>
 
+  <dialog id="customDialog">
+    <form class="settings-form" id="customForm">
+      <div class="dialog-title"><h2>自定义练习</h2><button id="closeCustomButton" class="icon-button" type="button" aria-label="关闭">×</button></div>
+      <div class="range-fields">
+        <label>起始组<select id="customStartGroup"></select></label>
+        <label>结束组<select id="customEndGroup"></select></label>
+      </div>
+      <label>选择内容
+        <select id="customFilter">
+          <option value="all">范围内全部单词</option>
+          <option value="wrong">曾经错过</option>
+          <option value="learning">当前错题</option>
+          <option value="mastered">已掌握</option>
+          <option value="new">尚未学习</option>
+        </select>
+      </label>
+      <label>本次题数<input id="customLimit" type="number" min="1" max="2995" value="30"></label>
+      <p id="customPreview" class="custom-preview">将从所选范围抽取题目</p>
+      <div class="dialog-actions custom-actions">
+        <button id="startCustomButton" class="primary-button" type="submit">开始练习</button>
+      </div>
+    </form>
+  </dialog>
+
   <audio id="pronunciationAudio" preload="auto"></audio>
   <script src="wordlist-data.js"></script>
-  <script src="app.js?v=20260707-7"></script>
+  <script src="app.js?v=20260707-8"></script>
 </body>
 </html>

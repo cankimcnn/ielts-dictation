@@ -7,7 +7,9 @@ const els = Object.fromEntries([
   "progressBar", "progressText", "correctCount", "reviewBadge", "reviewTable", "emptyReview",
   "statLearning", "statDue", "statMastered", "statAccuracy", "practiceMistakesButton", "settingsButton",
   "settingsDialog", "voiceSelect", "speechRate", "rateOutput", "autoSpeak", "saveSettings", "resetProgress",
-  "groupSelect", "groupComplete", "nextGroupButton", "syncStatus"
+  "groupSelect", "groupComplete", "nextGroupButton", "syncStatus", "practiceMode", "historyModeOption",
+  "repeatSessionButton", "returnNormalButton", "customDialog", "customForm", "closeCustomButton",
+  "customStartGroup", "customEndGroup", "customFilter", "customLimit", "customPreview", "startCustomButton"
 ].map(id => [id, document.getElementById(id)]));
 els.startOverlay = document.getElementById("startOverlay");
 els.startButton = document.getElementById("startButton");
@@ -20,6 +22,8 @@ let session = [];
 let currentIndex = 0;
 let sessionCorrect = 0;
 let sessionGroup = 1;
+let sessionMode = "normal";
+let lastCustomConfig = null;
 let locked = false;
 let voices = [];
 let history = [];
@@ -168,7 +172,7 @@ function getState(id) {
   return progress.words[id] || { status: "new", reviewStreak: 0, dueAt: 0, wrongCount: 0 };
 }
 
-function buildSession(mode = "mixed") {
+function buildSession(mode = "normal", customConfig = null) {
   const now = Date.now();
   const due = words.filter(word => {
     const state = getState(word.id);
@@ -178,9 +182,19 @@ function buildSession(mode = "mixed") {
   const selectedGroup = Math.min(Math.max(Number(progress.currentGroup) || 1, 1), totalGroups);
   progress.currentGroup = selectedGroup;
   sessionGroup = selectedGroup;
+  sessionMode = mode;
+  lastCustomConfig = mode === "custom" ? customConfig : lastCustomConfig;
   if (mode === "mistakes") {
     const learning = words.filter(word => getState(word.id).status === "learning");
     session = shuffle(learning);
+  } else if (mode === "history") {
+    session = shuffle(words.filter(word => (getState(word.id).wrongCount || 0) > 0));
+  } else if (mode === "custom") {
+    const config = customConfig || lastCustomConfig || { startGroup: 1, endGroup: totalGroups, filter: "all", limit: 30 };
+    const start = (Math.min(config.startGroup, config.endGroup) - 1) * 30;
+    const end = Math.max(config.startGroup, config.endGroup) * 30;
+    const candidates = words.slice(start, end).filter(word => matchesCustomFilter(word, config.filter));
+    session = shuffle(candidates).slice(0, Math.max(1, config.limit || candidates.length));
   } else {
     const groupStart = (selectedGroup - 1) * 30;
     const groupWords = words.slice(groupStart, groupStart + 30).filter(word => getState(word.id).status === "new");
@@ -191,7 +205,25 @@ function buildSession(mode = "mixed") {
   sessionCorrect = 0;
   history = [];
   saveProgress();
+  els.practiceMode.value = mode === "history" || mode === "custom" ? mode : "normal";
+  els.groupSelect.disabled = mode !== "normal";
   renderQuestion();
+}
+
+function matchesCustomFilter(word, filter) {
+  const state = getState(word.id);
+  if (filter === "wrong") return (state.wrongCount || 0) > 0;
+  if (filter === "learning") return state.status === "learning";
+  if (filter === "mastered") return state.status === "mastered";
+  if (filter === "new") return state.status === "new";
+  return true;
+}
+
+function modeLabel() {
+  if (sessionMode === "history") return "曾经错过";
+  if (sessionMode === "custom") return "自定义练习";
+  if (sessionMode === "mistakes") return "当前错题复习";
+  return `第 ${sessionGroup} 组`;
 }
 
 function shuffle(items) {
@@ -221,18 +253,28 @@ function renderQuestion() {
   if (!word) {
     els.startOverlay.hidden = true;
     const totalGroups = Math.ceil(words.length / 30);
-    els.instruction.textContent = `第 ${sessionGroup} 组完成`;
-    els.queueLabel.textContent = "本组学习结束";
+    els.instruction.textContent = sessionMode === "normal" ? `第 ${sessionGroup} 组完成` : `${modeLabel()}完成`;
+    els.queueLabel.textContent = sessionMode === "normal" ? "本组学习结束" : "本次练习结束";
     els.answerInput.disabled = true;
     els.answerForm.style.visibility = "hidden";
     els.groupComplete.hidden = false;
-    els.nextGroupButton.hidden = sessionGroup >= totalGroups;
+    els.nextGroupButton.hidden = sessionMode !== "normal" || sessionGroup >= totalGroups;
+    els.repeatSessionButton.hidden = sessionMode === "normal";
+    els.returnNormalButton.hidden = sessionMode === "normal";
     updateStats();
     return;
   }
   els.answerForm.style.visibility = "visible";
   const state = getState(word.id);
-  els.queueLabel.textContent = state.status === "learning" ? `第 ${sessionGroup} 组 · 错题复习 ${state.reviewStreak}/2` : `第 ${sessionGroup} 组 · 新词`;
+  if (sessionMode === "history") {
+    els.queueLabel.textContent = `曾经错过 · 累计错 ${state.wrongCount || 0} 次`;
+  } else if (sessionMode === "custom") {
+    els.queueLabel.textContent = `自定义练习 · ${currentIndex + 1}/${session.length}`;
+  } else if (sessionMode === "mistakes") {
+    els.queueLabel.textContent = `当前错题复习 · 已答对 ${state.reviewStreak}/2 次`;
+  } else {
+    els.queueLabel.textContent = state.status === "learning" ? `第 ${sessionGroup} 组 · 错题复习 ${state.reviewStreak}/2` : `第 ${sessionGroup} 组 · 新词`;
+  }
   els.instruction.textContent = "根据发音写出单词或短语";
   els.answerInput.focus();
   const upcomingWord = session[currentIndex + 1];
@@ -257,7 +299,7 @@ function submitAnswer(event) {
   if (isCorrect) {
     progress.correct += 1;
     sessionCorrect += 1;
-    handleCorrect(word);
+    if (shouldApplyCorrectProgress(word)) handleCorrect(word);
     showResult(word, given, true);
     playTone(true);
   } else {
@@ -274,6 +316,13 @@ function submitAnswer(event) {
   });
   updateStats();
   setTimeout(() => { currentIndex += 1; renderQuestion(); }, isCorrect ? 850 : 1800);
+}
+
+function shouldApplyCorrectProgress(word) {
+  if (sessionMode === "normal" || sessionMode === "mistakes") return true;
+  const state = getState(word.id);
+  if (state.status === "new") return true;
+  return state.status === "learning" && state.dueAt <= Date.now();
 }
 
 function handleCorrect(word) {
@@ -444,11 +493,13 @@ function updateStats() {
   const learning = states.filter(state => state.status === "learning");
   const mastered = states.filter(state => state.status === "mastered");
   const due = learning.filter(state => state.dueAt <= now);
+  const everWrong = states.filter(state => (state.wrongCount || 0) > 0);
   els.reviewBadge.textContent = learning.length;
   els.statLearning.textContent = learning.length;
   els.statDue.textContent = due.length;
   els.statMastered.textContent = mastered.length;
   els.statAccuracy.textContent = progress.attempts ? `${Math.round(progress.correct / progress.attempts * 100)}%` : "0%";
+  els.historyModeOption.textContent = `曾经错过（${everWrong.length}）`;
   els.reviewTable.innerHTML = "";
   words.filter(word => getState(word.id).status === "learning").slice(0, 200).forEach(word => {
     const state = getState(word.id);
@@ -495,6 +546,40 @@ function openSettings() {
   els.settingsDialog.showModal();
 }
 
+function customConfigFromForm() {
+  return {
+    startGroup: Number(els.customStartGroup.value),
+    endGroup: Number(els.customEndGroup.value),
+    filter: els.customFilter.value,
+    limit: Number(els.customLimit.value),
+  };
+}
+
+function customCandidateCount() {
+  if (!words.length) return 0;
+  const config = customConfigFromForm();
+  const start = (Math.min(config.startGroup, config.endGroup) - 1) * 30;
+  const end = Math.max(config.startGroup, config.endGroup) * 30;
+  return words.slice(start, end).filter(word => matchesCustomFilter(word, config.filter)).length;
+}
+
+function updateCustomPreview() {
+  const count = customCandidateCount();
+  const requested = Math.max(1, Number(els.customLimit.value) || 1);
+  els.customPreview.textContent = count
+    ? `符合条件 ${count} 个，本次随机练习 ${Math.min(count, requested)} 个`
+    : "当前范围没有符合条件的单词";
+  els.startCustomButton.disabled = count === 0;
+}
+
+function openCustomDialog() {
+  const current = String(progress.currentGroup || 1);
+  els.customStartGroup.value = current;
+  els.customEndGroup.value = current;
+  updateCustomPreview();
+  els.customDialog.showModal();
+}
+
 els.answerForm.addEventListener("submit", submitAnswer);
 els.speakButton.addEventListener("click", () => speak(false));
 els.slowButton.addEventListener("click", () => speak(true));
@@ -514,6 +599,15 @@ els.resetProgress.addEventListener("click", () => {
   queueServerReset(); updateStats(); buildSession(); els.settingsDialog.close();
 });
 els.practiceMistakesButton.addEventListener("click", () => { switchView("practice"); buildSession("mistakes"); });
+els.practiceMode.addEventListener("change", () => {
+  const mode = els.practiceMode.value;
+  if (mode === "custom") {
+    openCustomDialog();
+    return;
+  }
+  switchView("practice");
+  buildSession(mode);
+});
 els.groupSelect.addEventListener("change", () => {
   progress.currentGroup = Number(els.groupSelect.value);
   saveProgress();
@@ -526,6 +620,24 @@ els.nextGroupButton.addEventListener("click", () => {
   els.groupSelect.value = String(progress.currentGroup);
   saveProgress();
   buildSession();
+});
+els.repeatSessionButton.addEventListener("click", () => buildSession(sessionMode, lastCustomConfig));
+els.returnNormalButton.addEventListener("click", () => buildSession("normal"));
+els.closeCustomButton.addEventListener("click", () => {
+  els.customDialog.close();
+  els.practiceMode.value = sessionMode === "history" ? "history" : sessionMode === "custom" ? "custom" : "normal";
+});
+els.customForm.addEventListener("submit", event => {
+  event.preventDefault();
+  const config = customConfigFromForm();
+  if (!customCandidateCount()) return;
+  els.customDialog.close();
+  switchView("practice");
+  buildSession("custom", config);
+});
+[els.customStartGroup, els.customEndGroup, els.customFilter, els.customLimit].forEach(control => {
+  control.addEventListener("input", updateCustomPreview);
+  control.addEventListener("change", updateCustomPreview);
 });
 els.previousButton.addEventListener("click", () => {
   if (!history.length || locked) return;
@@ -555,6 +667,9 @@ wordListSource
       const end = Math.min((index + 1) * 30, words.length);
       return `<option value="${index + 1}">第 ${index + 1} 组 · ${start}-${end}</option>`;
     }).join("");
+    const compactGroupOptions = Array.from({ length: totalGroups }, (_, index) => `<option value="${index + 1}">第 ${index + 1} 组</option>`).join("");
+    els.customStartGroup.innerHTML = compactGroupOptions;
+    els.customEndGroup.innerHTML = compactGroupOptions;
     progress.currentGroup = Math.min(Math.max(Number(progress.currentGroup) || 1, 1), totalGroups);
     els.groupSelect.value = String(progress.currentGroup);
     updateStats();
