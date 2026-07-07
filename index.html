@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>听写练习</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="startOverlay" class="start-overlay">
+    <div class="start-panel">
+      <span class="start-mark">Aa</span>
+      <h1>准备好后开始听写</h1>
+      <p>点击开始会播放第一个英音，之后每题自动朗读。</p>
+      <button id="startButton" class="primary-button" type="button">▶ 开始听写</button>
+    </div>
+  </div>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="听写练习首页">
+      <span class="brand-mark">Aa</span>
+      <span>听写练习</span>
+    </a>
+    <nav class="top-actions" aria-label="主要功能">
+      <select id="groupSelect" class="group-select" aria-label="选择词库分组"></select>
+      <button class="nav-button active" data-view="practice">听写</button>
+      <button class="nav-button" data-view="review">错题库 <span id="reviewBadge" class="badge">0</span></button>
+      <button class="icon-button" id="settingsButton" title="设置" aria-label="设置">⚙</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="practiceView" class="practice-view">
+      <aside class="word-panel" aria-live="polite">
+        <button id="previousButton" class="back-button" title="上一题" aria-label="上一题">←</button>
+        <div>
+          <p id="wordStatus" class="eyebrow">听音拼写</p>
+          <div id="answerReveal" class="answer-reveal" aria-label="正确答案"></div>
+          <p id="phonetic" class="phonetic"></p>
+          <p id="meaning" class="meaning"></p>
+        </div>
+      </aside>
+
+      <section class="dictation-stage">
+        <div class="stage-heading">
+          <p id="queueLabel" class="eyebrow">今日新词</p>
+          <h1 id="instruction">根据发音写出单词或短语</h1>
+        </div>
+
+        <form id="answerForm" class="answer-form" autocomplete="off">
+          <input id="answerInput" type="text" inputmode="text" aria-label="输入听到的单词或短语" autofocus spellcheck="false" autocapitalize="none">
+          <button class="submit-button" type="submit" aria-label="提交答案">↵</button>
+        </form>
+
+        <div id="groupComplete" class="group-complete" hidden>
+          <button id="nextGroupButton" class="primary-button" type="button">下一组 →</button>
+        </div>
+
+        <p id="feedback" class="feedback" aria-live="assertive">按回车提交</p>
+
+        <div class="audio-controls">
+          <button id="speakButton" class="sound-button" type="button" aria-label="再听一次" title="再听一次">🔊</button>
+          <button id="slowButton" class="text-button" type="button">慢速</button>
+        </div>
+      </section>
+
+      <footer class="session-footer">
+        <div class="progress-track"><span id="progressBar"></span></div>
+        <span id="progressText">0 / 30</span>
+        <span class="streak"><strong id="correctCount">0</strong> 正确</span>
+        <span id="syncStatus" class="sync-status">正在连接</span>
+      </footer>
+    </section>
+
+    <section id="reviewView" class="library-view" hidden>
+      <div class="library-header">
+        <div>
+          <p class="eyebrow">复习记录</p>
+          <h1>错题库</h1>
+          <p>答错后进入复习；之后连续答对两次即毕业。</p>
+        </div>
+        <button id="practiceMistakesButton" class="primary-button">开始复习</button>
+      </div>
+      <div class="stats-grid">
+        <div><strong id="statLearning">0</strong><span>学习中</span></div>
+        <div><strong id="statDue">0</strong><span>今日待复习</span></div>
+        <div><strong id="statMastered">0</strong><span>已掌握</span></div>
+        <div><strong id="statAccuracy">0%</strong><span>累计正确率</span></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>单词 / 短语</th><th>释义</th><th>复习进度</th><th>下次复习</th></tr></thead>
+          <tbody id="reviewTable"></tbody>
+        </table>
+        <p id="emptyReview" class="empty-state">还没有错题，继续保持。</p>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="settingsDialog">
+    <form method="dialog" class="settings-form">
+      <div class="dialog-title"><h2>听写设置</h2><button class="icon-button" value="cancel" aria-label="关闭">×</button></div>
+      <label>英音语音<select id="voiceSelect"></select></label>
+      <label>正常语速<input id="speechRate" type="range" min="0.6" max="1.2" step="0.05"><output id="rateOutput"></output></label>
+      <label class="toggle-row"><input id="autoSpeak" type="checkbox"><span>切换题目后自动朗读</span></label>
+      <div class="dialog-actions">
+        <button id="resetProgress" class="danger-button" type="button">清空学习记录</button>
+        <button id="saveSettings" class="primary-button" value="default">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <audio id="pronunciationAudio" preload="auto"></audio>
+  <script src="wordlist-data.js"></script>
+  <script src="app.js?v=20260707-7"></script>
+</body>
+</html>

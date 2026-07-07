@@ -1,0 +1,21 @@
+[Unit]
+Description=IELTS Dictation
+After=network.target
+
+[Service]
+Type=simple
+User=ielts
+Group=ielts
+WorkingDirectory=/opt/ielts-dictation
+Environment=DICTATION_HOST=127.0.0.1
+Environment=DICTATION_PORT=4173
+Environment=DICTATION_DATA_DIR=/var/lib/ielts-dictation
+Environment=DICTATION_TOKEN=replace-with-a-long-random-token
+ExecStart=/usr/bin/python3 -u /opt/ielts-dictation/server.py
+Restart=on-failure
+RestartSec=3
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

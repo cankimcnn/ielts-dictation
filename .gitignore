@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+
+data/*
+!data/.gitkeep
+audio_cache/
+
+*.log
+.env
+.env.*
+!.env.example
