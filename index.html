@@ -95,7 +95,7 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>单词 / 短语</th><th>释义</th><th>复习进度</th><th>下次复习</th></tr></thead>
+          <thead><tr><th>单词 / 短语</th><th>重点</th><th>释义</th><th>复习进度</th><th>下次复习</th></tr></thead>
           <tbody id="reviewTable"></tbody>
         </table>
         <p id="emptyReview" class="empty-state">还没有错题，继续保持。</p>
@@ -127,6 +127,9 @@
         <select id="customFilter">
           <option value="all">范围内全部单词</option>
           <option value="wrong">曾经错过</option>
+          <option id="star1FilterOption" value="star1">1 星重点（含 3/5 星）</option>
+          <option id="star3FilterOption" value="star3">3 星重点（含 5 星）</option>
+          <option id="star5FilterOption" value="star5">5 星重点</option>
           <option value="learning">当前错题</option>
           <option value="mastered">已掌握</option>
           <option value="new">尚未学习</option>
@@ -142,6 +145,6 @@
 
   <audio id="pronunciationAudio" preload="auto"></audio>
   <script src="wordlist-data.js"></script>
-  <script src="app.js?v=20260707-8"></script>
+  <script src="app.js?v=20260708-9"></script>
 </body>
 </html>

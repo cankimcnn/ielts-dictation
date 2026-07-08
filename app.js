@@ -9,7 +9,8 @@ const els = Object.fromEntries([
   "settingsDialog", "voiceSelect", "speechRate", "rateOutput", "autoSpeak", "saveSettings", "resetProgress",
   "groupSelect", "groupComplete", "nextGroupButton", "syncStatus", "practiceMode", "historyModeOption",
   "repeatSessionButton", "returnNormalButton", "customDialog", "customForm", "closeCustomButton",
-  "customStartGroup", "customEndGroup", "customFilter", "customLimit", "customPreview", "startCustomButton"
+  "customStartGroup", "customEndGroup", "customFilter", "customLimit", "customPreview", "startCustomButton",
+  "star1FilterOption", "star3FilterOption", "star5FilterOption"
 ].map(id => [id, document.getElementById(id)]));
 els.startOverlay = document.getElementById("startOverlay");
 els.startButton = document.getElementById("startButton");
@@ -172,6 +173,24 @@ function getState(id) {
   return progress.words[id] || { status: "new", reviewStreak: 0, dueAt: 0, wrongCount: 0 };
 }
 
+function focusLevel(state) {
+  const wrongCount = state.wrongCount || 0;
+  if (wrongCount >= 4) return 5;
+  if (wrongCount >= 3) return 3;
+  if (wrongCount >= 2) return 1;
+  return 0;
+}
+
+function focusLabel(state) {
+  const level = focusLevel(state);
+  return level ? `${level} 星重点` : "普通错题";
+}
+
+function focusBadgeHTML(state) {
+  const level = focusLevel(state);
+  return `<span class="star-badge star-${level}">${level ? `${"★".repeat(level)} ${level}星` : "普通"}</span>`;
+}
+
 function buildSession(mode = "normal", customConfig = null) {
   const now = Date.now();
   const due = words.filter(word => {
@@ -213,6 +232,9 @@ function buildSession(mode = "normal", customConfig = null) {
 function matchesCustomFilter(word, filter) {
   const state = getState(word.id);
   if (filter === "wrong") return (state.wrongCount || 0) > 0;
+  if (filter === "star1") return (state.wrongCount || 0) >= 2;
+  if (filter === "star3") return (state.wrongCount || 0) >= 3;
+  if (filter === "star5") return (state.wrongCount || 0) >= 4;
   if (filter === "learning") return state.status === "learning";
   if (filter === "mastered") return state.status === "mastered";
   if (filter === "new") return state.status === "new";
@@ -267,9 +289,9 @@ function renderQuestion() {
   els.answerForm.style.visibility = "visible";
   const state = getState(word.id);
   if (sessionMode === "history") {
-    els.queueLabel.textContent = `曾经错过 · 累计错 ${state.wrongCount || 0} 次`;
+    els.queueLabel.textContent = `曾经错过 · ${focusLabel(state)} · 累计错 ${state.wrongCount || 0} 次`;
   } else if (sessionMode === "custom") {
-    els.queueLabel.textContent = `自定义练习 · ${currentIndex + 1}/${session.length}`;
+    els.queueLabel.textContent = `自定义练习 · ${focusLabel(state)} · ${currentIndex + 1}/${session.length}`;
   } else if (sessionMode === "mistakes") {
     els.queueLabel.textContent = `当前错题复习 · 已答对 ${state.reviewStreak}/2 次`;
   } else {
@@ -494,17 +516,23 @@ function updateStats() {
   const mastered = states.filter(state => state.status === "mastered");
   const due = learning.filter(state => state.dueAt <= now);
   const everWrong = states.filter(state => (state.wrongCount || 0) > 0);
+  const star1 = states.filter(state => (state.wrongCount || 0) >= 2);
+  const star3 = states.filter(state => (state.wrongCount || 0) >= 3);
+  const star5 = states.filter(state => (state.wrongCount || 0) >= 4);
   els.reviewBadge.textContent = learning.length;
   els.statLearning.textContent = learning.length;
   els.statDue.textContent = due.length;
   els.statMastered.textContent = mastered.length;
   els.statAccuracy.textContent = progress.attempts ? `${Math.round(progress.correct / progress.attempts * 100)}%` : "0%";
   els.historyModeOption.textContent = `曾经错过（${everWrong.length}）`;
+  els.star1FilterOption.textContent = `1 星重点（${star1.length}，含 3/5 星）`;
+  els.star3FilterOption.textContent = `3 星重点（${star3.length}，含 5 星）`;
+  els.star5FilterOption.textContent = `5 星重点（${star5.length}）`;
   els.reviewTable.innerHTML = "";
   words.filter(word => getState(word.id).status === "learning").slice(0, 200).forEach(word => {
     const state = getState(word.id);
     const row = document.createElement("tr");
-    row.innerHTML = `<td>${escapeHTML(word.term)}</td><td>${escapeHTML(word.meaning || "-")}</td><td>${state.reviewStreak} / 2</td><td>${formatDue(state.dueAt)}</td>`;
+    row.innerHTML = `<td>${escapeHTML(word.term)}</td><td>${focusBadgeHTML(state)}</td><td>${escapeHTML(word.meaning || "-")}</td><td>${state.reviewStreak} / 2</td><td>${formatDue(state.dueAt)}</td>`;
     els.reviewTable.appendChild(row);
   });
   els.emptyReview.hidden = learning.length > 0;

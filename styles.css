@@ -117,6 +117,11 @@ table { width: 100%; border-collapse: collapse; }
 th, td { padding: 15px 18px; border-bottom: 1px solid var(--line); text-align: left; }
 th { color: var(--muted); font-size: 13px; }
 td:first-child { font-weight: 700; }
+.star-badge { display: inline-block; min-width: 62px; font-size: 13px; font-weight: 750; white-space: nowrap; }
+.star-badge.star-0 { color: var(--muted); font-weight: 500; }
+.star-badge.star-1 { color: var(--blue); }
+.star-badge.star-3 { color: #b56a00; }
+.star-badge.star-5 { color: var(--danger); }
 .empty-state { margin: 0; padding: 44px; color: var(--muted); text-align: center; }
 
 dialog { width: min(480px, calc(100% - 32px)); padding: 0; border: 0; border-radius: 8px; box-shadow: 0 24px 80px rgba(36, 52, 71, .25); }
