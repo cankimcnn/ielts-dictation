@@ -171,7 +171,7 @@ function parseWordList(text) {
 }
 
 function getState(id) {
-  return progress.words[id] || { status: "new", reviewStreak: 0, dueAt: 0, wrongCount: 0 };
+  return progress.words[id] || { status: "new", reviewStreak: 0, dueAt: 0, wrongCount: 0, dismissed: false };
 }
 
 function focusLevel(state) {
@@ -196,7 +196,7 @@ function buildSession(mode = "normal", customConfig = null) {
   const now = Date.now();
   const due = words.filter(word => {
     const state = getState(word.id);
-    return state.status === "learning" && state.dueAt <= now;
+    return !state.dismissed && state.status === "learning" && state.dueAt <= now;
   });
   const totalGroups = Math.ceil(words.length / 30);
   const selectedGroup = Math.min(Math.max(Number(progress.currentGroup) || 1, 1), totalGroups);
@@ -205,10 +205,16 @@ function buildSession(mode = "normal", customConfig = null) {
   sessionMode = mode;
   lastCustomConfig = mode === "custom" ? customConfig : lastCustomConfig;
   if (mode === "mistakes") {
-    const learning = words.filter(word => getState(word.id).status === "learning");
+    const learning = words.filter(word => {
+      const state = getState(word.id);
+      return !state.dismissed && state.status === "learning";
+    });
     session = shuffle(learning);
   } else if (mode === "history") {
-    session = shuffle(words.filter(word => (getState(word.id).wrongCount || 0) > 0));
+    session = shuffle(words.filter(word => {
+      const state = getState(word.id);
+      return !state.dismissed && (state.wrongCount || 0) > 0;
+    }));
   } else if (mode === "custom") {
     const config = customConfig || lastCustomConfig || { startGroup: 1, endGroup: totalGroups, filter: "all", limit: 30 };
     const start = (Math.min(config.startGroup, config.endGroup) - 1) * 30;
@@ -217,7 +223,10 @@ function buildSession(mode = "normal", customConfig = null) {
     session = shuffle(candidates).slice(0, Math.max(1, config.limit || candidates.length));
   } else {
     const groupStart = (selectedGroup - 1) * 30;
-    const groupWords = words.slice(groupStart, groupStart + 30).filter(word => getState(word.id).status === "new");
+    const groupWords = words.slice(groupStart, groupStart + 30).filter(word => {
+      const state = getState(word.id);
+      return !state.dismissed && state.status === "new";
+    });
     const merged = new Map([...due, ...groupWords].map(word => [word.id, word]));
     session = shuffle([...merged.values()]);
   }
@@ -232,6 +241,7 @@ function buildSession(mode = "normal", customConfig = null) {
 
 function matchesCustomFilter(word, filter) {
   const state = getState(word.id);
+  if (state.dismissed) return false;
   if (filter === "wrong") return (state.wrongCount || 0) > 0;
   if (filter === "star1") return (state.wrongCount || 0) >= 2;
   if (filter === "star3") return (state.wrongCount || 0) >= 3;
@@ -529,7 +539,7 @@ function playTone(correct) {
 }
 
 function updateStats() {
-  const states = Object.values(progress.words);
+  const states = Object.values(progress.words).filter(state => !state.dismissed);
   const now = Date.now();
   const learning = states.filter(state => state.status === "learning");
   const mastered = states.filter(state => state.status === "mastered");
@@ -548,13 +558,32 @@ function updateStats() {
   els.star3FilterOption.textContent = `3 星重点（${star3.length}，含 5 星）`;
   els.star5FilterOption.textContent = `5 星重点（${star5.length}）`;
   els.reviewTable.innerHTML = "";
-  words.filter(word => getState(word.id).status === "learning").slice(0, 200).forEach(word => {
+  words.filter(word => {
+    const state = getState(word.id);
+    return !state.dismissed && state.status === "learning";
+  }).slice(0, 200).forEach(word => {
     const state = getState(word.id);
     const row = document.createElement("tr");
-    row.innerHTML = `<td>${escapeHTML(word.term)}</td><td>${focusBadgeHTML(state)}</td><td>${escapeHTML(word.meaning || "-")}</td><td>${state.reviewStreak} / 2</td><td>${formatDue(state.dueAt)}</td>`;
+    row.innerHTML = `<td>${escapeHTML(word.term)}</td><td>${focusBadgeHTML(state)}</td><td>${escapeHTML(word.meaning || "-")}</td><td>${state.reviewStreak} / 2</td><td>${formatDue(state.dueAt)}</td><td><button class="remove-word-button" type="button" data-word-id="${escapeHTML(word.id)}" title="从错题记录中删除">删除</button></td>`;
     els.reviewTable.appendChild(row);
   });
   els.emptyReview.hidden = learning.length > 0;
+}
+
+function dismissWrongWord(wordId) {
+  const word = words.find(item => item.id === wordId);
+  if (!word || !confirm(`确定删除“${word.term}”吗？删除后它将退出所有错题和星级复习。`)) return;
+  const state = getState(wordId);
+  progress.words[wordId] = {
+    ...state,
+    status: "mastered",
+    reviewStreak: 0,
+    dueAt: 0,
+    wrongCount: 0,
+    dismissed: true,
+  };
+  saveProgress(wordId);
+  updateStats();
 }
 
 function formatDue(timestamp) {
@@ -650,6 +679,10 @@ els.resetProgress.addEventListener("click", () => {
   queueServerReset(); updateStats(); buildSession(); els.settingsDialog.close();
 });
 els.practiceMistakesButton.addEventListener("click", () => { switchView("practice"); buildSession("mistakes"); });
+els.reviewTable.addEventListener("click", event => {
+  const button = event.target.closest(".remove-word-button");
+  if (button) dismissWrongWord(button.dataset.wordId);
+});
 els.practiceMode.addEventListener("change", () => {
   const mode = els.practiceMode.value;
   if (mode === "custom") {

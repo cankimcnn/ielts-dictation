@@ -49,7 +49,8 @@ def initialize_db():
                 review_streak INTEGER NOT NULL DEFAULT 0,
                 due_at INTEGER NOT NULL DEFAULT 0,
                 wrong_count INTEGER NOT NULL DEFAULT 0,
-                last_answer_at INTEGER NOT NULL DEFAULT 0
+                last_answer_at INTEGER NOT NULL DEFAULT 0,
+                dismissed INTEGER NOT NULL DEFAULT 0
             );
 
             CREATE TABLE IF NOT EXISTS attempts (
@@ -68,6 +69,9 @@ def initialize_db():
             ON attempts(answered_at);
             """
         )
+        columns = {row["name"] for row in db.execute("PRAGMA table_info(word_progress)")}
+        if "dismissed" not in columns:
+            db.execute("ALTER TABLE word_progress ADD COLUMN dismissed INTEGER NOT NULL DEFAULT 0")
 
 
 def backup_db():
@@ -166,6 +170,7 @@ class DictationHandler(SimpleHTTPRequestHandler):
                 "dueAt": row["due_at"],
                 "wrongCount": row["wrong_count"],
                 "lastAnswerAt": row["last_answer_at"],
+                "dismissed": bool(row["dismissed"]),
             }
             for row in rows
         }
@@ -214,14 +219,15 @@ class DictationHandler(SimpleHTTPRequestHandler):
                         continue
                     db.execute(
                         """
-                        INSERT INTO word_progress(word_id, status, review_streak, due_at, wrong_count, last_answer_at)
-                        VALUES(?, ?, ?, ?, ?, ?)
+                        INSERT INTO word_progress(word_id, status, review_streak, due_at, wrong_count, last_answer_at, dismissed)
+                        VALUES(?, ?, ?, ?, ?, ?, ?)
                         ON CONFLICT(word_id) DO UPDATE SET
                             status=excluded.status,
                             review_streak=excluded.review_streak,
                             due_at=excluded.due_at,
                             wrong_count=excluded.wrong_count,
-                            last_answer_at=excluded.last_answer_at
+                            last_answer_at=excluded.last_answer_at,
+                            dismissed=excluded.dismissed
                         """,
                         (
                             word_id,
@@ -230,6 +236,7 @@ class DictationHandler(SimpleHTTPRequestHandler):
                             int(state.get("dueAt", 0)),
                             int(state.get("wrongCount", 0)),
                             int(state.get("lastAnswerAt", 0)),
+                            1 if state.get("dismissed") else 0,
                         ),
                     )
                 if isinstance(attempt, dict):

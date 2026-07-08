@@ -22,7 +22,7 @@ pause
 exit /b 1
 
 :server_ready
-start "" "http://127.0.0.1:4173/?v=20260708-15"
+start "" "http://127.0.0.1:4173/?v=20260708-16"
 exit /b 0
 
 :python_missing

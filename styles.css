@@ -130,6 +130,8 @@ td:first-child { font-weight: 700; }
 .star-badge.star-1 { color: var(--blue); }
 .star-badge.star-3 { color: #b56a00; }
 .star-badge.star-5 { color: var(--danger); }
+.remove-word-button { min-height: 32px; padding: 0 10px; border: 1px solid #efb7b7; border-radius: 5px; background: var(--surface); color: var(--danger); cursor: pointer; white-space: nowrap; }
+.remove-word-button:hover { background: var(--danger-soft); }
 .empty-state { margin: 0; padding: 44px; color: var(--muted); text-align: center; }
 
 dialog { width: min(480px, calc(100% - 32px)); padding: 0; border: 0; border-radius: 8px; box-shadow: 0 24px 80px rgba(36, 52, 71, .25); }
