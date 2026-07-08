@@ -39,7 +39,7 @@
         <button id="previousButton" class="back-button" title="上一题" aria-label="上一题">←</button>
         <div>
           <p id="wordStatus" class="eyebrow">听音拼写</p>
-          <div id="answerReveal" class="answer-reveal" aria-label="正确答案"></div>
+          <button id="answerReveal" class="answer-reveal" type="button" aria-label="点击播放上一题发音" title="点击播放发音" disabled></button>
           <p id="phonetic" class="phonetic"></p>
           <p id="meaning" class="meaning"></p>
         </div>
@@ -145,6 +145,6 @@
 
   <audio id="pronunciationAudio" preload="auto"></audio>
   <script src="wordlist-data.js"></script>
-  <script src="app.js?v=20260708-9"></script>
+  <script src="app.js?v=20260708-10"></script>
 </body>
 </html>

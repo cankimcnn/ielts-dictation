@@ -28,6 +28,7 @@ let lastCustomConfig = null;
 let locked = false;
 let voices = [];
 let history = [];
+let lastAnsweredWord = null;
 let audioUnlocked = false;
 let audioContext = null;
 let activeAudioSource = null;
@@ -313,7 +314,8 @@ function submitAnswer(event) {
   if (locked || !currentWord() || !els.answerInput.value.trim()) return;
   locked = true;
   const word = currentWord();
-  const given = normalize(els.answerInput.value);
+  const submitted = els.answerInput.value.trim();
+  const given = normalize(submitted);
   const expected = normalize(word.term);
   const isCorrect = given === expected;
   history.push({ index: currentIndex, answer: els.answerInput.value });
@@ -322,11 +324,11 @@ function submitAnswer(event) {
     progress.correct += 1;
     sessionCorrect += 1;
     if (shouldApplyCorrectProgress(word)) handleCorrect(word);
-    showResult(word, given, true);
+    showResult(word, submitted, true);
     playTone(true);
   } else {
     handleWrong(word);
-    showResult(word, given, false);
+    showResult(word, submitted, false);
     playTone(false);
   }
   saveProgress(word.id, {
@@ -377,17 +379,22 @@ function handleWrong(word) {
 
 function showResult(word, given, isCorrect) {
   els.answerInput.disabled = true;
-  els.wordStatus.textContent = isCorrect ? "拼写正确" : `你的答案：${given}`;
-  els.answerReveal.innerHTML = isCorrect ? `<span class="right">${escapeHTML(word.term)}</span>` : diffAnswer(word.term, given);
+  lastAnsweredWord = word;
+  els.wordStatus.textContent = isCorrect ? "拼写正确 · 点击重听" : `正确答案：${word.term} · 点击重听`;
+  els.answerReveal.innerHTML = isCorrect ? `<span class="right">${escapeHTML(given)}</span>` : diffUserAnswer(word.term, given);
+  els.answerReveal.disabled = false;
+  els.answerReveal.title = `点击播放 ${word.term} 的发音`;
+  els.answerReveal.setAttribute("aria-label", `点击播放 ${word.term} 的发音`);
   els.phonetic.textContent = word.phonetic ? `/${word.phonetic}/` : "";
   els.meaning.textContent = word.meaning;
   els.feedback.textContent = isCorrect ? "正确，即将进入下一题" : "红色位置需要注意，即将进入下一题";
   els.feedback.className = `feedback ${isCorrect ? "correct" : "incorrect"}`;
 }
 
-function diffAnswer(expected, actual) {
-  const a = [...normalize(expected)];
-  const b = [...normalize(actual)];
+function diffUserAnswer(expected, actual) {
+  const a = [...expected].map(comparisonChar);
+  const original = [...actual];
+  const b = original.map(comparisonChar);
   const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
   for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
     dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
@@ -395,10 +402,14 @@ function diffAnswer(expected, actual) {
   const matched = new Set();
   let i = a.length, j = b.length;
   while (i && j) {
-    if (a[i - 1] === b[j - 1]) { matched.add(i - 1); i--; j--; }
+    if (a[i - 1] === b[j - 1]) { matched.add(j - 1); i--; j--; }
     else if (dp[i - 1][j] >= dp[i][j - 1]) i--; else j--;
   }
-  return a.map((char, index) => `<span class="${matched.has(index) ? "right" : "wrong"}">${escapeHTML(char)}</span>`).join("");
+  return original.map((char, index) => `<span class="${matched.has(index) ? "right" : "wrong"}">${escapeHTML(char)}</span>`).join("");
+}
+
+function comparisonChar(char) {
+  return char.toLowerCase().replace(/[’‘]/g, "'");
 }
 
 function escapeHTML(value) {
@@ -418,6 +429,12 @@ async function speak(slow = false) {
   els.startOverlay.hidden = true;
   const word = currentWord();
   if (!word) return;
+  await speakWord(word, slow);
+}
+
+async function speakWord(word, slow = false) {
+  audioUnlocked = true;
+  els.startOverlay.hidden = true;
   const token = ++playbackToken;
   setAudioState("loading");
   try {
@@ -612,6 +629,9 @@ els.answerForm.addEventListener("submit", submitAnswer);
 els.speakButton.addEventListener("click", () => speak(false));
 els.slowButton.addEventListener("click", () => speak(true));
 els.startButton.addEventListener("click", () => speak(false));
+els.answerReveal.addEventListener("click", () => {
+  if (lastAnsweredWord) speakWord(lastAnsweredWord, false);
+});
 els.settingsButton.addEventListener("click", openSettings);
 els.speechRate.addEventListener("input", () => els.rateOutput.value = `${Number(els.speechRate.value).toFixed(2)}×`);
 els.saveSettings.addEventListener("click", () => {

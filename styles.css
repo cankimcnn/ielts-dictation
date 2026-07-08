@@ -71,7 +71,10 @@ button { color: inherit; }
 .word-panel { position: absolute; top: 26px; left: clamp(20px, 7.5vw, 120px); display: grid; grid-template-columns: 34px minmax(180px, 320px); gap: 10px; min-height: 130px; }
 .back-button { width: 34px; height: 34px; border-radius: 6px; font-size: 28px; line-height: 1; }
 .eyebrow { margin: 0 0 7px; color: var(--muted); font-size: 13px; font-weight: 700; text-transform: uppercase; }
-.answer-reveal { min-height: 34px; font-family: Georgia, serif; font-size: 29px; line-height: 1.2; word-break: break-word; }
+.answer-reveal { min-height: 34px; padding: 0; border: 0; background: transparent; color: inherit; font-family: Georgia, serif; font-size: 29px; line-height: 1.2; text-align: left; word-break: break-word; cursor: pointer; }
+.answer-reveal:disabled { cursor: default; }
+.answer-reveal:not(:disabled):hover { text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 5px; }
+.answer-reveal:not(:disabled):focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 3px; }
 .answer-reveal .right { color: var(--success); }
 .answer-reveal .wrong { color: var(--danger); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
 .phonetic, .meaning { margin: 5px 0 0; color: var(--muted); line-height: 1.5; }
