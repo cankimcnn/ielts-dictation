@@ -69,7 +69,8 @@ button { color: inherit; }
 .badge { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; margin-left: 4px; color: white; background: var(--danger); border-radius: 10px; font-size: 12px; }
 
 .practice-view { position: relative; height: calc(100dvh - 78px); min-height: 540px; overflow: hidden; }
-.word-panel { position: absolute; top: 26px; left: clamp(20px, 7.5vw, 120px); display: grid; grid-template-columns: 34px minmax(180px, 320px); gap: 10px; min-height: 130px; }
+.word-panel { position: absolute; top: 26px; left: clamp(20px, 7.5vw, 120px); display: grid; grid-template-columns: 34px minmax(180px, 280px); gap: 10px; min-height: 130px; }
+.word-panel > div { width: min(280px, calc(100vw - 96px)); min-width: 0; overflow: hidden; }
 .back-button { width: 34px; height: 34px; border-radius: 6px; font-size: 28px; line-height: 1; }
 .eyebrow { margin: 0 0 7px; color: var(--muted); font-size: 13px; font-weight: 700; text-transform: uppercase; }
 .word-panel .eyebrow { text-transform: none; }
@@ -79,7 +80,8 @@ button { color: inherit; }
 .answer-reveal:not(:disabled):focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; border-radius: 3px; }
 .answer-reveal .right { color: var(--success); }
 .answer-reveal .wrong { color: var(--danger); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
-.phonetic, .meaning { margin: 5px 0 0; color: var(--muted); line-height: 1.5; }
+.phonetic, .meaning { max-width: 100%; margin: 5px 0 0; overflow-wrap: anywhere; color: var(--muted); line-height: 1.5; }
+.phonetic { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .meaning { max-width: 340px; font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 .dictation-stage { display: flex; flex-direction: column; align-items: center; width: min(680px, calc(100% - 40px)); height: 100%; margin: 0 auto; padding: clamp(58px, 9vh, 88px) 0 88px; text-align: center; }
