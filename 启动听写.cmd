@@ -8,7 +8,7 @@ if not exist "%PYTHON%" goto python_missing
 powershell.exe -NoProfile -Command "try { $r = Invoke-WebRequest -UseBasicParsing 'http://127.0.0.1:4173/api/health' -TimeoutSec 1; if ($r.StatusCode -eq 200) { exit 0 } } catch {}; exit 1"
 if not errorlevel 1 goto server_ready
 
-start "IELTS Dictation Server" /min "%PYTHON%" -u "%~dp0server.py"
+powershell.exe -NoProfile -WindowStyle Hidden -Command "Start-Process -FilePath '%PYTHON%' -ArgumentList @('-u','%~dp0server.py') -WorkingDirectory '%~dp0' -WindowStyle Hidden"
 
 for /L %%I in (1,1,10) do (
   powershell.exe -NoProfile -Command "try { $r = Invoke-WebRequest -UseBasicParsing 'http://127.0.0.1:4173/api/health' -TimeoutSec 1; if ($r.StatusCode -eq 200) { exit 0 } } catch {}; exit 1"
@@ -22,7 +22,7 @@ pause
 exit /b 1
 
 :server_ready
-start "" "http://127.0.0.1:4173/?v=20260708-12"
+start "" "http://127.0.0.1:4173/?v=20260708-13"
 exit /b 0
 
 :python_missing

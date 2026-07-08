@@ -569,6 +569,7 @@ function switchView(view) {
   const practice = view === "practice";
   els.practiceView.hidden = !practice;
   els.reviewView.hidden = practice;
+  document.body.classList.toggle("practice-active", practice);
   document.querySelectorAll(".nav-button").forEach(btn => btn.classList.toggle("active", btn.dataset.view === view));
   if (!practice) updateStats(); else setTimeout(() => els.answerInput.focus(), 0);
 }
@@ -723,6 +724,7 @@ wordListSource
     progress.currentGroup = Math.min(Math.max(Number(progress.currentGroup) || 1, 1), totalGroups);
     els.groupSelect.value = String(progress.currentGroup);
     updateStats();
+    document.body.classList.add("practice-active");
     buildSession();
     loadVoices();
   })

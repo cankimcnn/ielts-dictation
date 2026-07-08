@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>听写练习</title>
-  <link rel="stylesheet" href="styles.css?v=20260708-12">
+  <link rel="stylesheet" href="styles.css?v=20260708-13">
 </head>
 <body>
   <div id="startOverlay" class="start-overlay">
@@ -51,6 +51,11 @@
           <h1 id="instruction">根据发音写出单词或短语</h1>
         </div>
 
+        <div class="audio-controls">
+          <button id="speakButton" class="sound-button" type="button" aria-label="再听一次" title="再听一次">🔊</button>
+          <button id="slowButton" class="text-button" type="button">慢速</button>
+        </div>
+
         <form id="answerForm" class="answer-form" autocomplete="off">
           <input id="answerInput" type="text" inputmode="text" aria-label="输入听到的单词或短语" autofocus spellcheck="false" autocapitalize="none">
           <button class="submit-button" type="submit" aria-label="提交答案">↵</button>
@@ -64,10 +69,6 @@
 
         <p id="feedback" class="feedback" aria-live="assertive">按回车提交</p>
 
-        <div class="audio-controls">
-          <button id="speakButton" class="sound-button" type="button" aria-label="再听一次" title="再听一次">🔊</button>
-          <button id="slowButton" class="text-button" type="button">慢速</button>
-        </div>
       </section>
 
       <footer class="session-footer">
@@ -145,6 +146,6 @@
 
   <audio id="pronunciationAudio" preload="auto"></audio>
   <script src="wordlist-data.js"></script>
-  <script src="app.js?v=20260708-12"></script>
+  <script src="app.js?v=20260708-13"></script>
 </body>
 </html>
