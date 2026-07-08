@@ -380,8 +380,10 @@ function handleWrong(word) {
 function showResult(word, given, isCorrect) {
   els.answerInput.disabled = true;
   lastAnsweredWord = word;
-  els.wordStatus.textContent = isCorrect ? "拼写正确 · 点击重听" : `正确答案：${word.term} · 点击重听`;
-  els.answerReveal.innerHTML = isCorrect ? `<span class="right">${escapeHTML(given)}</span>` : diffUserAnswer(word.term, given);
+  els.wordStatus.textContent = isCorrect ? "拼写正确" : `你的答案：${given}`;
+  els.answerReveal.innerHTML = isCorrect
+    ? `<span class="right">${escapeHTML(word.term)}</span>`
+    : diffAnswer(word.term, given);
   els.answerReveal.disabled = false;
   els.answerReveal.title = `点击播放 ${word.term} 的发音`;
   els.answerReveal.setAttribute("aria-label", `点击播放 ${word.term} 的发音`);
@@ -391,10 +393,10 @@ function showResult(word, given, isCorrect) {
   els.feedback.className = `feedback ${isCorrect ? "correct" : "incorrect"}`;
 }
 
-function diffUserAnswer(expected, actual) {
-  const a = [...expected].map(comparisonChar);
-  const original = [...actual];
-  const b = original.map(comparisonChar);
+function diffAnswer(expected, actual) {
+  const original = [...expected];
+  const a = original.map(comparisonChar);
+  const b = [...actual].map(comparisonChar);
   const dp = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
   for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
     dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] + 1 : Math.max(dp[i - 1][j], dp[i][j - 1]);
@@ -402,7 +404,7 @@ function diffUserAnswer(expected, actual) {
   const matched = new Set();
   let i = a.length, j = b.length;
   while (i && j) {
-    if (a[i - 1] === b[j - 1]) { matched.add(j - 1); i--; j--; }
+    if (a[i - 1] === b[j - 1]) { matched.add(i - 1); i--; j--; }
     else if (dp[i - 1][j] >= dp[i][j - 1]) i--; else j--;
   }
   return original.map((char, index) => `<span class="${matched.has(index) ? "right" : "wrong"}">${escapeHTML(char)}</span>`).join("");
