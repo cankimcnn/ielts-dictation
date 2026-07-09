@@ -1,0 +1,45 @@
+{
+  "generatedAt": "2026-07-08T16:48:18.997Z",
+  "shuffleSeed": 20260709,
+  "sourceRows": 1964,
+  "sourceUnique": 1963,
+  "sourceDuplicatesRemoved": 1,
+  "retainedWrongTerms": 186,
+  "retainedOldOnly": 92,
+  "retainedWrongOverlappingNewCorpus": 94,
+  "dismissedTermsExcluded": 0,
+  "totalEntries": 2055,
+  "groups": 69,
+  "sources": [
+    {
+      "file": "D:\\download\\同桌英语答案词（刘夏来语料库） 高频+基础+进阶+词组_高频答案词-1.xlsx",
+      "sheet": "Sheet1",
+      "rows": 300
+    },
+    {
+      "file": "D:\\download\\同桌英语答案词（刘夏来语料库） 高频+基础+进阶+词组_高频答案词-2.xlsx",
+      "sheet": "Sheet1",
+      "rows": 300
+    },
+    {
+      "file": "D:\\download\\同桌英语答案词（刘夏来语料库） 高频+基础+进阶+词组_高频答案词-3.xlsx",
+      "sheet": "Sheet1",
+      "rows": 393
+    },
+    {
+      "file": "D:\\download\\同桌英语答案词（刘夏来语料库） 高频+基础+进阶+词组_基础答案词（目标＜＝6.5分、A１－B２难度）.xlsx",
+      "sheet": "Sheet1",
+      "rows": 350
+    },
+    {
+      "file": "D:\\download\\同桌英语答案词（刘夏来语料库） 高频+基础+进阶+词组_进阶答案词（目标＞＝７分、C１－C２难度）.xlsx",
+      "sheet": "Sheet1",
+      "rows": 331
+    },
+    {
+      "file": "D:\\download\\同桌英语答案词（刘夏来语料库） 高频+基础+进阶+词组_词组答案词.xlsx",
+      "sheet": "Sheet1",
+      "rows": 290
+    }
+  ]
+}
