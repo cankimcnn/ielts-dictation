@@ -51,4 +51,14 @@ python apply_feedback.py --apply
 
 脚本会根据反馈中的拼写、词义和发音朗读文本更新词库或重新下载对应本地音频。
 
+## 发音来源审计
+
+本地音频优先使用 Oxford Learner's Dictionaries 和 Cambridge Dictionary 页面中的 UK/英式真人词典音频。批量审计脚本：
+
+```powershell
+python audit_official_audio.py --apply
+```
+
+审计结果写入 `official-audio-report.json`，未匹配到官方词典真人音频、继续保留 Google `en-GB` TTS 的词条列在 `official-audio-fallbacks.md`。
+
 错题库每一行都可以单独删除。删除后该词会永久退出当前错题、曾经错过、1/3/5 星重点和自定义练习，不再参与记忆曲线复习；排除状态保存在 SQLite 中并随服务器同步。

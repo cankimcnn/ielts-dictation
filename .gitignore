@@ -4,6 +4,7 @@ __pycache__/
 data/*
 !data/.gitkeep
 audio_cache/
+official_audio_cache/
 
 *.log
 .env
