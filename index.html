@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>听写练习</title>
-  <link rel="stylesheet" href="styles.css?v=20260708-16">
+  <link rel="stylesheet" href="styles.css?v=20260711-20">
 </head>
 <body>
   <div id="startOverlay" class="start-overlay">
@@ -39,7 +39,10 @@
         <button id="previousButton" class="back-button" title="上一题" aria-label="上一题">←</button>
         <div>
           <p id="wordStatus" class="eyebrow">听音拼写</p>
-          <button id="answerReveal" class="answer-reveal" type="button" aria-label="点击播放上一题发音" title="点击播放发音" disabled></button>
+          <span class="answer-row">
+            <button id="answerReveal" class="answer-reveal" type="button" aria-label="点击播放上一题发音" title="点击播放发音" disabled></button>
+            <button id="reportButton" class="report-button" type="button" title="反馈" aria-label="反馈" disabled>?</button>
+          </span>
           <p id="phonetic" class="phonetic"></p>
           <p id="meaning" class="meaning"></p>
         </div>
@@ -144,8 +147,32 @@
     </form>
   </dialog>
 
+  <dialog id="feedbackDialog">
+    <form class="settings-form" id="feedbackForm">
+      <div class="dialog-title"><h2>反馈词条</h2><button id="closeFeedbackButton" class="icon-button" type="button" aria-label="关闭">×</button></div>
+      <input id="feedbackWordId" type="hidden">
+      <div class="feedback-word-card">
+        <strong id="feedbackTerm"></strong>
+        <span id="feedbackMeaning"></span>
+      </div>
+      <fieldset class="feedback-types">
+        <legend>反馈类型</legend>
+        <label><input id="issuePronunciation" type="checkbox" value="pronunciation"> 发音</label>
+        <label><input id="issueMeaning" type="checkbox" value="meaning"> 词义</label>
+        <label><input id="issueSpelling" type="checkbox" value="spelling"> 拼写</label>
+      </fieldset>
+      <label>正确拼写<input id="feedbackSuggestedTerm" type="text" autocomplete="off" spellcheck="false"></label>
+      <label>正确词义<textarea id="feedbackSuggestedMeaning" rows="3"></textarea></label>
+      <label>发音朗读文本<input id="feedbackPronunciationQuery" type="text" autocomplete="off" spellcheck="false"></label>
+      <label>备注<textarea id="feedbackNote" rows="3" placeholder="例如：这个短语应该连读，或这个词义和表格不一致"></textarea></label>
+      <div class="dialog-actions custom-actions">
+        <button id="submitFeedbackButton" class="primary-button" type="submit">提交反馈</button>
+      </div>
+    </form>
+  </dialog>
+
   <audio id="pronunciationAudio" preload="auto"></audio>
-  <script src="wordlist-data.js?v=20260709-19"></script>
-  <script src="app.js?v=20260709-19"></script>
+  <script src="wordlist-data.js?v=20260711-20"></script>
+  <script src="app.js?v=20260711-20"></script>
 </body>
 </html>

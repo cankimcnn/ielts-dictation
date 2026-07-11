@@ -10,7 +10,10 @@ const els = Object.fromEntries([
   "groupSelect", "groupComplete", "nextGroupButton", "syncStatus", "practiceMode", "historyModeOption",
   "repeatSessionButton", "returnNormalButton", "customDialog", "customForm", "closeCustomButton",
   "customStartGroup", "customEndGroup", "customFilter", "customLimit", "customPreview", "startCustomButton",
-  "star1FilterOption", "star3FilterOption", "star5FilterOption"
+  "star1FilterOption", "star3FilterOption", "star5FilterOption", "reportButton", "feedbackDialog",
+  "feedbackForm", "closeFeedbackButton", "feedbackWordId", "feedbackTerm", "feedbackMeaning",
+  "issuePronunciation", "issueMeaning", "issueSpelling", "feedbackSuggestedTerm",
+  "feedbackSuggestedMeaning", "feedbackPronunciationQuery", "feedbackNote", "submitFeedbackButton"
 ].map(id => [id, document.getElementById(id)]));
 els.startOverlay = document.getElementById("startOverlay");
 els.startButton = document.getElementById("startButton");
@@ -397,10 +400,74 @@ function showResult(word, given, isCorrect) {
   els.answerReveal.disabled = false;
   els.answerReveal.title = `点击播放 ${word.term} 的发音`;
   els.answerReveal.setAttribute("aria-label", `点击播放 ${word.term} 的发音`);
+  els.reportButton.disabled = false;
+  els.reportButton.title = `反馈 ${word.term}`;
   els.phonetic.textContent = word.phonetic ? `/${word.phonetic}/` : "";
   els.meaning.textContent = word.meaning;
   els.feedback.textContent = isCorrect ? "正确，即将进入下一题" : "红色位置需要注意，即将进入下一题";
   els.feedback.className = `feedback ${isCorrect ? "correct" : "incorrect"}`;
+}
+
+function openFeedbackDialog() {
+  if (!lastAnsweredWord) return;
+  els.feedbackWordId.value = lastAnsweredWord.id;
+  els.feedbackTerm.textContent = lastAnsweredWord.term;
+  els.feedbackMeaning.textContent = lastAnsweredWord.meaning || "暂无释义";
+  els.issuePronunciation.checked = false;
+  els.issueMeaning.checked = false;
+  els.issueSpelling.checked = false;
+  els.feedbackSuggestedTerm.value = lastAnsweredWord.term;
+  els.feedbackSuggestedMeaning.value = lastAnsweredWord.meaning || "";
+  els.feedbackPronunciationQuery.value = lastAnsweredWord.term;
+  els.feedbackNote.value = "";
+  els.submitFeedbackButton.disabled = false;
+  els.submitFeedbackButton.textContent = "提交反馈";
+  els.feedbackDialog.showModal();
+}
+
+async function submitFeedback(event) {
+  event.preventDefault();
+  if (!lastAnsweredWord) return;
+  const issueTypes = [
+    ["pronunciation", els.issuePronunciation],
+    ["meaning", els.issueMeaning],
+    ["spelling", els.issueSpelling],
+  ].filter(([, input]) => input.checked).map(([type]) => type);
+  if (!issueTypes.length) {
+    els.feedback.textContent = "请先选择反馈类型";
+    els.feedback.className = "feedback incorrect";
+    return;
+  }
+  const payload = {
+    wordId: lastAnsweredWord.id,
+    term: lastAnsweredWord.term,
+    phonetic: lastAnsweredWord.phonetic || "",
+    meaning: lastAnsweredWord.meaning || "",
+    issueTypes,
+    suggestedTerm: els.feedbackSuggestedTerm.value.trim(),
+    suggestedMeaning: els.feedbackSuggestedMeaning.value.trim(),
+    pronunciationQuery: els.feedbackPronunciationQuery.value.trim(),
+    note: els.feedbackNote.value.trim(),
+  };
+  els.submitFeedbackButton.disabled = true;
+  els.submitFeedbackButton.textContent = "提交中";
+  try {
+    const response = await fetch("/api/feedback", {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`反馈失败：${response.status}`);
+    els.feedbackDialog.close();
+    els.feedback.textContent = "反馈已保存";
+    els.feedback.className = "feedback correct";
+    setSyncStatus("反馈已保存");
+  } catch (error) {
+    els.submitFeedbackButton.disabled = false;
+    els.submitFeedbackButton.textContent = "提交反馈";
+    els.feedback.textContent = error.message;
+    els.feedback.className = "feedback incorrect";
+  }
 }
 
 function diffAnswer(expected, actual) {
@@ -664,6 +731,9 @@ els.startButton.addEventListener("click", () => speak(false));
 els.answerReveal.addEventListener("click", () => {
   if (lastAnsweredWord) speakWord(lastAnsweredWord, false);
 });
+els.reportButton.addEventListener("click", openFeedbackDialog);
+els.closeFeedbackButton.addEventListener("click", () => els.feedbackDialog.close());
+els.feedbackForm.addEventListener("submit", submitFeedback);
 els.settingsButton.addEventListener("click", openSettings);
 els.speechRate.addEventListener("input", () => els.rateOutput.value = `${Number(els.speechRate.value).toFixed(2)}×`);
 els.saveSettings.addEventListener("click", () => {

@@ -5,6 +5,7 @@ import json
 import os
 import sqlite3
 import sys
+import time
 import urllib.parse
 import urllib.request
 from datetime import datetime
@@ -18,6 +19,7 @@ CACHE_DIR.mkdir(exist_ok=True)
 DATA_DIR = Path(os.environ.get("DICTATION_DATA_DIR", ROOT / "data"))
 BACKUP_DIR = DATA_DIR / "backups"
 DB_PATH = DATA_DIR / "dictation.db"
+FEEDBACK_LOG = DATA_DIR / "feedback-log.jsonl"
 ACCESS_TOKEN = os.environ.get("DICTATION_TOKEN", "").strip()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
@@ -67,6 +69,27 @@ def initialize_db():
 
             CREATE INDEX IF NOT EXISTS idx_attempts_answered_at
             ON attempts(answered_at);
+
+            CREATE TABLE IF NOT EXISTS feedback_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                word_id TEXT NOT NULL,
+                term TEXT NOT NULL,
+                phonetic TEXT NOT NULL DEFAULT '',
+                meaning TEXT NOT NULL DEFAULT '',
+                issue_types TEXT NOT NULL,
+                suggested_term TEXT NOT NULL DEFAULT '',
+                suggested_meaning TEXT NOT NULL DEFAULT '',
+                pronunciation_query TEXT NOT NULL DEFAULT '',
+                note TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL,
+                resolved_at INTEGER NOT NULL DEFAULT 0
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_feedback_log_created
+            ON feedback_log(created_at);
+
+            CREATE INDEX IF NOT EXISTS idx_feedback_log_unresolved
+            ON feedback_log(resolved_at, created_at);
             """
         )
         columns = {row["name"] for row in db.execute("PRAGMA table_info(word_progress)")}
@@ -100,6 +123,11 @@ class DictationHandler(SimpleHTTPRequestHandler):
                 return
             self.get_progress()
             return
+        if parsed.path == "/api/feedback":
+            if not self.authorized():
+                return
+            self.get_feedback()
+            return
         if parsed.path == "/api/tts":
             self.serve_tts(parsed.query)
             return
@@ -111,6 +139,11 @@ class DictationHandler(SimpleHTTPRequestHandler):
             if not self.authorized():
                 return
             self.save_progress()
+            return
+        if parsed.path == "/api/feedback":
+            if not self.authorized():
+                return
+            self.save_feedback()
             return
         self.send_error(404)
 
@@ -264,6 +297,96 @@ class DictationHandler(SimpleHTTPRequestHandler):
             db.execute("DELETE FROM word_progress")
             db.execute("DELETE FROM app_state")
         self.send_json({"ok": True})
+
+    def get_feedback(self):
+        query = urllib.parse.urlparse(self.path).query
+        params = urllib.parse.parse_qs(query)
+        include_resolved = params.get("all", ["0"])[0] == "1"
+        sql = "SELECT * FROM feedback_log"
+        if not include_resolved:
+            sql += " WHERE resolved_at = 0"
+        sql += " ORDER BY created_at DESC, id DESC LIMIT 500"
+        with connect_db() as db:
+            rows = db.execute(sql).fetchall()
+        self.send_json({
+            "feedback": [
+                {
+                    "id": row["id"],
+                    "wordId": row["word_id"],
+                    "term": row["term"],
+                    "phonetic": row["phonetic"],
+                    "meaning": row["meaning"],
+                    "issueTypes": row["issue_types"].split(",") if row["issue_types"] else [],
+                    "suggestedTerm": row["suggested_term"],
+                    "suggestedMeaning": row["suggested_meaning"],
+                    "pronunciationQuery": row["pronunciation_query"],
+                    "note": row["note"],
+                    "createdAt": row["created_at"],
+                    "resolvedAt": row["resolved_at"],
+                }
+                for row in rows
+            ]
+        })
+
+    def save_feedback(self):
+        payload = self.read_json()
+        if payload is None:
+            return
+        allowed_types = {"pronunciation", "meaning", "spelling"}
+        issue_types = [
+            str(item).strip()
+            for item in payload.get("issueTypes", [])
+            if str(item).strip() in allowed_types
+        ]
+        if not issue_types:
+            self.send_json({"error": "请选择至少一种反馈类型"}, status=400)
+            return
+        word_id = str(payload.get("wordId", "")).strip()
+        term = str(payload.get("term", "")).strip()
+        if not word_id or not term or len(word_id) > 80 or len(term) > 200:
+            self.send_json({"error": "Invalid feedback word"}, status=400)
+            return
+        feedback = {
+            "wordId": word_id,
+            "term": term,
+            "phonetic": str(payload.get("phonetic", "")).strip()[:300],
+            "meaning": str(payload.get("meaning", "")).strip()[:1000],
+            "issueTypes": issue_types,
+            "suggestedTerm": str(payload.get("suggestedTerm", "")).strip()[:200],
+            "suggestedMeaning": str(payload.get("suggestedMeaning", "")).strip()[:1000],
+            "pronunciationQuery": str(payload.get("pronunciationQuery", "")).strip()[:200],
+            "note": str(payload.get("note", "")).strip()[:1000],
+            "createdAt": int(time.time() * 1000),
+        }
+        try:
+            with connect_db() as db:
+                cursor = db.execute(
+                    """
+                    INSERT INTO feedback_log(
+                        word_id, term, phonetic, meaning, issue_types,
+                        suggested_term, suggested_meaning, pronunciation_query, note, created_at
+                    )
+                    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        feedback["wordId"],
+                        feedback["term"],
+                        feedback["phonetic"],
+                        feedback["meaning"],
+                        ",".join(feedback["issueTypes"]),
+                        feedback["suggestedTerm"],
+                        feedback["suggestedMeaning"],
+                        feedback["pronunciationQuery"],
+                        feedback["note"],
+                        feedback["createdAt"],
+                    ),
+                )
+                feedback["id"] = cursor.lastrowid
+            with FEEDBACK_LOG.open("a", encoding="utf-8") as log_file:
+                log_file.write(json.dumps(feedback, ensure_ascii=False) + "\n")
+            self.send_json({"ok": True, "id": feedback["id"]})
+        except sqlite3.Error as exc:
+            self.send_json({"error": str(exc)}, status=400)
 
     def serve_tts(self, query_string: str):
         term = urllib.parse.parse_qs(query_string).get("q", [""])[0].strip()
