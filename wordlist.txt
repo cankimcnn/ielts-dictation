@@ -178,7 +178,7 @@ P9   994   flute   fluːt   n. 长笛
 P9   813   umbrella   ʌmˈbrelə   n. 伞；雨伞
 P9   1571   headlight   ˈhedlaɪt   n. （汽车等）前灯
 P9   1191   fan   fæn   n. 粉丝；风扇
-P9   626   imported   ɪmˈpɔː(r)tɪd   adj.进口的（动词import的过去分词）
+P9   626   import   ɪmˈpɔː(r)tɪd   adj.进口的（动词import的过去分词）
 P9   1068   shared   ʃeəd   adj. 共享的；共同的； v. 共享；分享；“share”的过去式和过去分词
 P9   702   pilot   ˈpaɪlət   n. 飞行员
 P1   476   collect   kә'lekt   v. 收集, 聚集, 集中, 搜集; a. 由收到者付款的
@@ -243,7 +243,6 @@ P9   404   transport   ˈtrænspɔːt   n. 运输； v. 运输
 P9   1493   footprint   ˈfʊtprɪnt   n. 足迹
 P9   318   seafood   ˈsiːfuːd   n. 海产食物（如海鱼、贝类等）
 P9   70   creativity   ˌkriːeɪˈtɪvəti   n. 创造力；创造
-P9   1642   set of dictionaries   set əv ˈdɪkʃənəriz   phrase. 一套词典；字典集合
 P9   820   vocabulary   vəˈkæbjələri   n. 词汇量
 P9   1348   intensive   ɪnˈtensɪv   adj. 密集的
 P9   610   high   haɪ   adj. 高的； adv. 在高处
@@ -478,7 +477,7 @@ P9   1300   demand   dɪˈmɑːnd   n. 需求；要求； v. 要求；需求
 P9   30   boot   buːt   n. 靴子
 P9   1802   air conditioning   ˈeə kəndɪʃənɪŋ   phrase. 空调
 P9   401   traditional   trəˈdɪʃən(ə)l   adj. 传统的
-P9   1609   free entry   friː ˈentri   phrase. 免费入场
+P9   1609   duty-free access   friː ˈentri   免税通道
 P9   1188   illness   ˈɪlnəs   n. 病；疾病
 P9   719   presentation   ˌprez(ə)nˈteɪʃ(ə)n   n. 报告；展示；陈述
 P9   347   software   ˈsɒftweə(r)   n. 软件
