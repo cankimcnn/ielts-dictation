@@ -3,9 +3,13 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sqlite3
+import subprocess
 import sys
+import threading
 import time
+import traceback
 import urllib.parse
 import urllib.request
 from datetime import datetime
@@ -20,9 +24,17 @@ DATA_DIR = Path(os.environ.get("DICTATION_DATA_DIR", ROOT / "data"))
 BACKUP_DIR = DATA_DIR / "backups"
 DB_PATH = DATA_DIR / "dictation.db"
 FEEDBACK_LOG = DATA_DIR / "feedback-log.jsonl"
+FEEDBACK_APPLY_LOG = DATA_DIR / "feedback-apply.log"
+WORDLIST = ROOT / "wordlist.txt"
+WORDLIST_DATA = ROOT / "wordlist-data.js"
+AUDIO_DIR = ROOT / "audio"
 ACCESS_TOKEN = os.environ.get("DICTATION_TOKEN", "").strip()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+
+APPLY_STATE_LOCK = threading.Lock()
+APPLY_RUNNING = False
+APPLY_PENDING = False
 
 
 def connect_db():
@@ -109,6 +121,80 @@ def backup_db():
         old_backup.unlink(missing_ok=True)
 
 
+def backup_wordlist():
+    if not WORDLIST.exists():
+        return
+    backup_path = BACKUP_DIR / f"wordlist-{datetime.now():%Y-%m-%d-%H%M%S}.txt"
+    backup_path.write_text(WORDLIST.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def word_id_from_line(line: str) -> str | None:
+    match = re.match(r"^P(\d+)\s+(\d+)\s+", line)
+    if not match:
+        return None
+    return f"P{match.group(1)}-{match.group(2)}"
+
+
+def write_wordlist(lines: list[str]):
+    text = "\n".join(lines).rstrip() + "\n"
+    WORDLIST.write_text(text, encoding="utf-8")
+    WORDLIST_DATA.write_text("window.WORDLIST_TEXT = " + repr(text) + ";\n", encoding="utf-8")
+
+
+def queue_feedback_apply():
+    global APPLY_RUNNING, APPLY_PENDING
+    with APPLY_STATE_LOCK:
+        if APPLY_RUNNING:
+            APPLY_PENDING = True
+            return "queued"
+        APPLY_RUNNING = True
+    threading.Thread(target=feedback_apply_worker, daemon=True).start()
+    return "started"
+
+
+def feedback_apply_worker():
+    global APPLY_RUNNING, APPLY_PENDING
+    while True:
+        started_at = datetime.now().isoformat(timespec="seconds")
+        env = os.environ.copy()
+        env["DICTATION_DATA_DIR"] = str(DATA_DIR)
+        env.setdefault("PYTHONIOENCODING", "utf-8")
+        try:
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "apply_feedback.py"), "--apply"],
+                cwd=str(ROOT),
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            log_entry = {
+                "startedAt": started_at,
+                "finishedAt": datetime.now().isoformat(timespec="seconds"),
+                "returnCode": result.returncode,
+                "stdout": result.stdout[-5000:],
+                "stderr": result.stderr[-5000:],
+            }
+        except Exception as exc:
+            log_entry = {
+                "startedAt": started_at,
+                "finishedAt": datetime.now().isoformat(timespec="seconds"),
+                "error": str(exc),
+                "traceback": traceback.format_exc()[-5000:],
+            }
+        try:
+            with FEEDBACK_APPLY_LOG.open("a", encoding="utf-8") as log_file:
+                log_file.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
+        except OSError as exc:
+            print(f"Unable to write feedback apply log: {exc}", file=sys.stderr)
+        with APPLY_STATE_LOCK:
+            if APPLY_PENDING:
+                APPLY_PENDING = False
+                continue
+            APPLY_RUNNING = False
+            break
+
+
 class DictationHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
@@ -154,10 +240,17 @@ class DictationHandler(SimpleHTTPRequestHandler):
                 return
             self.reset_progress()
             return
+        if parsed.path == "/api/word":
+            if not self.authorized():
+                return
+            self.delete_word()
+            return
         self.send_error(404)
 
     def end_headers(self):
         if self.path == "/" or self.path.startswith("/?") or self.path.endswith((".html", ".js", ".css")):
+            self.send_header("Cache-Control", "no-store, max-age=0")
+        if self.path.endswith(".mp3") or ".mp3?" in self.path:
             self.send_header("Cache-Control", "no-store, max-age=0")
         super().end_headers()
 
@@ -298,6 +391,55 @@ class DictationHandler(SimpleHTTPRequestHandler):
             db.execute("DELETE FROM app_state")
         self.send_json({"ok": True})
 
+    def delete_word(self):
+        payload = self.read_json()
+        if payload is None:
+            return
+        word_id = str(payload.get("wordId", "")).strip()
+        term = str(payload.get("term", "")).strip()
+        if not re.fullmatch(r"P\d+-\d+", word_id):
+            self.send_json({"error": "Invalid word id"}, status=400)
+            return
+        try:
+            lines = WORDLIST.read_text(encoding="utf-8").splitlines()
+            remaining = []
+            removed_line = None
+            for line in lines:
+                if word_id_from_line(line) == word_id:
+                    removed_line = line
+                    continue
+                remaining.append(line)
+            if removed_line is None:
+                self.send_json({"error": "Word not found in wordlist"}, status=404)
+                return
+            backup_wordlist()
+            write_wordlist(remaining)
+            audio_path = AUDIO_DIR / f"{word_id}.mp3"
+            audio_path.unlink(missing_ok=True)
+            now = int(time.time() * 1000)
+            with connect_db() as db:
+                db.execute("DELETE FROM word_progress WHERE word_id = ?", (word_id,))
+                db.execute("DELETE FROM attempts WHERE word_id = ?", (word_id,))
+                db.execute(
+                    """
+                    UPDATE app_state
+                    SET updated_at = ?
+                    WHERE id = 1
+                    """,
+                    (now,),
+                )
+            backup_db()
+            self.send_json({
+                "ok": True,
+                "wordId": word_id,
+                "term": term,
+                "removed": removed_line,
+            })
+        except OSError as exc:
+            self.send_json({"error": str(exc)}, status=500)
+        except sqlite3.Error as exc:
+            self.send_json({"error": str(exc)}, status=400)
+
     def get_feedback(self):
         query = urllib.parse.urlparse(self.path).query
         params = urllib.parse.parse_qs(query)
@@ -384,7 +526,8 @@ class DictationHandler(SimpleHTTPRequestHandler):
                 feedback["id"] = cursor.lastrowid
             with FEEDBACK_LOG.open("a", encoding="utf-8") as log_file:
                 log_file.write(json.dumps(feedback, ensure_ascii=False) + "\n")
-            self.send_json({"ok": True, "id": feedback["id"]})
+            apply_status = queue_feedback_apply()
+            self.send_json({"ok": True, "id": feedback["id"], "applyStatus": apply_status})
         except sqlite3.Error as exc:
             self.send_json({"error": str(exc)}, status=400)
 

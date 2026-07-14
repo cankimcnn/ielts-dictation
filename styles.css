@@ -153,9 +153,32 @@ dialog::backdrop { background: rgba(22, 32, 43, .42); }
 .feedback-word-card { display: grid; gap: 5px; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: #f8fafb; }
 .feedback-word-card strong { font-size: 20px; }
 .feedback-word-card span { color: var(--muted); font-size: 13px; line-height: 1.5; }
-.feedback-types { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 6px; }
+.feedback-types { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 6px; }
 .feedback-types legend { padding: 0 4px; color: var(--muted); font-size: 13px; font-weight: 700; }
-.feedback-types label { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.settings-form .feedback-types label,
+#deleteWordButton.feedback-delete-button {
+  display: grid;
+  grid-template-rows: 18px auto;
+  justify-items: center;
+  align-items: center;
+  gap: 6px;
+  min-width: 42px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-weight: 700;
+  line-height: 1.2;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.feedback-types input[type="checkbox"] { width: 16px; height: 16px; margin: 0; }
+.feedback-delete-box { width: 16px; height: 16px; border: 1px solid #777; border-radius: 3px; background: white; box-sizing: border-box; }
+#deleteWordButton.feedback-delete-button:hover .feedback-delete-box { border-color: var(--danger); background: var(--danger-soft); }
+#deleteWordButton.feedback-delete-button:hover { color: var(--danger); }
 .settings-form textarea, .settings-form input[type="text"] { width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 5px; background: white; resize: vertical; }
 
 @media (max-width: 720px) {

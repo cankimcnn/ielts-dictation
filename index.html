@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>听写练习</title>
-  <link rel="stylesheet" href="styles.css?v=20260711-20">
+  <link rel="stylesheet" href="styles.css?v=20260714-01">
 </head>
 <body>
   <div id="startOverlay" class="start-overlay">
@@ -160,6 +160,10 @@
         <label><input id="issuePronunciation" type="checkbox" value="pronunciation"> 发音</label>
         <label><input id="issueMeaning" type="checkbox" value="meaning"> 词义</label>
         <label><input id="issueSpelling" type="checkbox" value="spelling"> 拼写</label>
+        <button id="deleteWordButton" class="feedback-delete-button" type="button" aria-label="删除词条">
+          <span class="feedback-delete-box" aria-hidden="true"></span>
+          <span>删除</span>
+        </button>
       </fieldset>
       <label>正确拼写<input id="feedbackSuggestedTerm" type="text" autocomplete="off" spellcheck="false"></label>
       <label>正确词义<textarea id="feedbackSuggestedMeaning" rows="3"></textarea></label>
@@ -172,7 +176,7 @@
   </dialog>
 
   <audio id="pronunciationAudio" preload="auto"></audio>
-  <script src="wordlist-data.js?v=20260711-20"></script>
-  <script src="app.js?v=20260711-20"></script>
+  <script src="wordlist-data.js?v=20260714-01"></script>
+  <script src="app.js?v=20260714-01"></script>
 </body>
 </html>

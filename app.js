@@ -13,7 +13,7 @@ const els = Object.fromEntries([
   "star1FilterOption", "star3FilterOption", "star5FilterOption", "reportButton", "feedbackDialog",
   "feedbackForm", "closeFeedbackButton", "feedbackWordId", "feedbackTerm", "feedbackMeaning",
   "issuePronunciation", "issueMeaning", "issueSpelling", "feedbackSuggestedTerm",
-  "feedbackSuggestedMeaning", "feedbackPronunciationQuery", "feedbackNote", "submitFeedbackButton"
+  "feedbackSuggestedMeaning", "feedbackPronunciationQuery", "feedbackNote", "submitFeedbackButton", "deleteWordButton"
 ].map(id => [id, document.getElementById(id)]));
 els.startOverlay = document.getElementById("startOverlay");
 els.startButton = document.getElementById("startButton");
@@ -37,6 +37,7 @@ let audioContext = null;
 let activeAudioSource = null;
 let playbackToken = 0;
 const audioBufferCache = new Map();
+const audioVersion = new Map();
 let serverSyncQueue = Promise.resolve();
 const onlineAudio = document.getElementById("pronunciationAudio");
 onlineAudio.preload = "auto";
@@ -322,6 +323,72 @@ function normalize(value) {
   return value.trim().toLowerCase().replace(/[’‘]/g, "'").replace(/\s+/g, " ");
 }
 
+const SPELLING_VARIANT_PAIRS = [
+  ["aeroplane", "airplane"],
+  ["analogue", "analog"],
+  ["apologise", "apologize"],
+  ["behaviour", "behavior"],
+  ["catalogue", "catalog"],
+  ["centre", "center"],
+  ["centred", "centered"],
+  ["cheque", "check"],
+  ["colour", "color"],
+  ["defence", "defense"],
+  ["dialogue", "dialog"],
+  ["favourite", "favorite"],
+  ["fibre", "fiber"],
+  ["flavour", "flavor"],
+  ["grey", "gray"],
+  ["harbour", "harbor"],
+  ["honour", "honor"],
+  ["jewellery", "jewelry"],
+  ["labour", "labor"],
+  ["licence", "license"],
+  ["litre", "liter"],
+  ["metre", "meter"],
+  ["neighbour", "neighbor"],
+  ["offence", "offense"],
+  ["organisation", "organization"],
+  ["organise", "organize"],
+  ["programme", "program"],
+  ["practise", "practice"],
+  ["realise", "realize"],
+  ["rumour", "rumor"],
+  ["theatre", "theater"],
+  ["towards", "toward"],
+  ["traveller", "traveler"],
+  ["travelling", "traveling"],
+  ["tyre", "tire"],
+];
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function replaceVariantToken(text, from, to) {
+  const pattern = new RegExp(`(^|[^a-z])(${escapeRegExp(from)})(?=$|[^a-z])`, "g");
+  return text.replace(pattern, `$1${to}`);
+}
+
+function acceptedSpellings(term) {
+  const base = normalize(term);
+  const accepted = new Set([base]);
+  const queue = [base];
+  while (queue.length && accepted.size < 80) {
+    const current = queue.shift();
+    for (const [left, right] of SPELLING_VARIANT_PAIRS) {
+      for (const [from, to] of [[left, right], [right, left]]) {
+        const next = replaceVariantToken(current, from, to);
+        if (next !== current && !accepted.has(next)) {
+          accepted.add(next);
+          queue.push(next);
+        }
+      }
+    }
+  }
+  return accepted;
+}
+
 function submitAnswer(event) {
   event.preventDefault();
   if (locked || !currentWord() || !els.answerInput.value.trim()) return;
@@ -329,8 +396,7 @@ function submitAnswer(event) {
   const word = currentWord();
   const submitted = els.answerInput.value.trim();
   const given = normalize(submitted);
-  const expected = normalize(word.term);
-  const isCorrect = given === expected;
+  const isCorrect = acceptedSpellings(word.term).has(given);
   history.push({ index: currentIndex, answer: els.answerInput.value });
   progress.attempts += 1;
   if (isCorrect) {
@@ -422,6 +488,7 @@ function openFeedbackDialog() {
   els.feedbackNote.value = "";
   els.submitFeedbackButton.disabled = false;
   els.submitFeedbackButton.textContent = "提交反馈";
+  els.deleteWordButton.disabled = false;
   els.feedbackDialog.showModal();
 }
 
@@ -458,13 +525,65 @@ async function submitFeedback(event) {
       body: JSON.stringify(payload),
     });
     if (!response.ok) throw new Error(`反馈失败：${response.status}`);
+    const result = await response.json();
+    applyFeedbackLocally(payload);
     els.feedbackDialog.close();
-    els.feedback.textContent = "反馈已保存";
+    els.feedback.textContent = result.applyStatus ? "反馈已保存，正在自动应用" : "反馈已保存";
     els.feedback.className = "feedback correct";
-    setSyncStatus("反馈已保存");
+    setSyncStatus(result.applyStatus ? "反馈已保存，正在自动应用" : "反馈已保存");
   } catch (error) {
     els.submitFeedbackButton.disabled = false;
     els.submitFeedbackButton.textContent = "提交反馈";
+    els.feedback.textContent = error.message;
+    els.feedback.className = "feedback incorrect";
+  }
+}
+
+function applyFeedbackLocally(payload) {
+  const word = words.find(item => item.id === payload.wordId);
+  if (!word) return;
+  const issueTypes = new Set(payload.issueTypes || []);
+  if (issueTypes.has("spelling") && payload.suggestedTerm) word.term = payload.suggestedTerm;
+  if (issueTypes.has("meaning") && payload.suggestedMeaning) word.meaning = payload.suggestedMeaning;
+  if (lastAnsweredWord && lastAnsweredWord.id === word.id) {
+    lastAnsweredWord.term = word.term;
+    lastAnsweredWord.meaning = word.meaning;
+  }
+  audioBufferCache.delete(word.id);
+  audioVersion.set(word.id, Date.now());
+}
+
+async function deleteWordFromCorpus(event) {
+  event?.preventDefault();
+  event?.stopPropagation();
+  if (!lastAnsweredWord) return;
+  const word = lastAnsweredWord;
+  if (!confirm(`确定从词库中彻底删除“${word.term}”吗？删除后它也会从错题和复习记录中移除。`)) return;
+  els.deleteWordButton.disabled = true;
+  els.submitFeedbackButton.disabled = true;
+  try {
+    const response = await fetch("/api/word", {
+      method: "DELETE",
+      headers: apiHeaders(),
+      body: JSON.stringify({ wordId: word.id, term: word.term }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || `删除失败：${response.status}`);
+    words = words.filter(item => item.id !== word.id);
+    delete progress.words[word.id];
+    audioBufferCache.delete(word.id);
+    audioVersion.delete(word.id);
+    progress.updatedAt = Date.now();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    els.feedbackDialog.close();
+    switchView("practice");
+    els.feedback.textContent = "删除成功，已返回听写";
+    els.feedback.className = "feedback correct";
+    setSyncStatus("已保存");
+    updateStats();
+  } catch (error) {
+    els.deleteWordButton.disabled = false;
+    els.submitFeedbackButton.disabled = false;
     els.feedback.textContent = error.message;
     els.feedback.className = "feedback incorrect";
   }
@@ -551,7 +670,9 @@ async function ensureAudioContext() {
 
 async function loadAudioBuffer(word) {
   if (audioBufferCache.has(word.id)) return audioBufferCache.get(word.id);
-  const response = await fetch(`audio/${encodeURIComponent(word.id)}.mp3`);
+  const version = audioVersion.get(word.id) || "";
+  const suffix = version ? `?v=${version}` : "";
+  const response = await fetch(`audio/${encodeURIComponent(word.id)}.mp3${suffix}`, { cache: "no-store" });
   if (!response.ok) throw new Error(`Audio file returned ${response.status}`);
   const context = await ensureAudioContext();
   const buffer = await context.decodeAudioData(await response.arrayBuffer());
@@ -566,7 +687,8 @@ function preloadAudio(word) {
 
 async function playWithHtmlAudio(word, slow) {
   onlineAudio.pause();
-  onlineAudio.src = `audio/${encodeURIComponent(word.id)}.mp3`;
+  const version = audioVersion.get(word.id) || Date.now();
+  onlineAudio.src = `audio/${encodeURIComponent(word.id)}.mp3?v=${version}`;
   onlineAudio.playbackRate = slow ? Math.max(.7, settings.speechRate - .2) : settings.speechRate;
   try {
     await onlineAudio.play();
@@ -637,9 +759,10 @@ function updateStats() {
   els.emptyReview.hidden = learning.length > 0;
 }
 
-function dismissWrongWord(wordId) {
+function dismissWrongWord(wordId, options = {}) {
   const word = words.find(item => item.id === wordId);
-  if (!word || !confirm(`确定删除“${word.term}”吗？删除后它将退出所有错题和星级复习。`)) return;
+  const confirmFirst = options.confirmFirst !== false;
+  if (!word || (confirmFirst && !confirm(`确定删除“${word.term}”吗？删除后它将退出所有错题和星级复习。`))) return;
   const state = getState(wordId);
   progress.words[wordId] = {
     ...state,
@@ -734,6 +857,7 @@ els.answerReveal.addEventListener("click", () => {
 els.reportButton.addEventListener("click", openFeedbackDialog);
 els.closeFeedbackButton.addEventListener("click", () => els.feedbackDialog.close());
 els.feedbackForm.addEventListener("submit", submitFeedback);
+els.deleteWordButton.addEventListener("click", deleteWordFromCorpus);
 els.settingsButton.addEventListener("click", openSettings);
 els.speechRate.addEventListener("input", () => els.rateOutput.value = `${Number(els.speechRate.value).toFixed(2)}×`);
 els.saveSettings.addEventListener("click", () => {

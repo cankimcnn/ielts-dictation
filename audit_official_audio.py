@@ -16,6 +16,7 @@ AUDIO_DIR = ROOT / "audio"
 REPORT = ROOT / "official-audio-report.json"
 OFFICIAL_DIR = ROOT / "official_audio_cache"
 MISS_CACHE = ROOT / "official-audio-missing.json"
+OVERRIDES = ROOT / "audio-overrides.json"
 OFFICIAL_DIR.mkdir(exist_ok=True)
 
 HEADERS = {
@@ -62,6 +63,15 @@ def request_audio(url: str, timeout=10):
     return data
 
 
+def load_audio_overrides():
+    if not OVERRIDES.exists():
+        return {}
+    try:
+        return json.loads(OVERRIDES.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
 def first_oxford_uk_audio(term: str):
     page = f"https://www.oxfordlearnersdictionaries.com/definition/english/{slug(term)}"
     html = request_text(page)
@@ -88,6 +98,16 @@ def first_cambridge_uk_audio(term: str):
 
 
 def find_official_audio(term: str):
+    override = load_audio_overrides().get(term.strip().lower())
+    if override and override.get("audioUrl"):
+        data = request_audio(override["audioUrl"])
+        return {
+            "source": override.get("source", "override"),
+            "pageUrl": override.get("pageUrl", ""),
+            "audioUrl": override["audioUrl"],
+            "data": data,
+            "override": True,
+        }
     errors = []
     for source, finder in (("oxford", first_oxford_uk_audio), ("cambridge", first_cambridge_uk_audio)):
         try:
