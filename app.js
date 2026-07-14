@@ -1,5 +1,7 @@
 const STORAGE_KEY = "ielts-dictation-v1";
 const SETTINGS_KEY = "ielts-dictation-settings-v1";
+const NEW_WORDS_PER_GROUP = 30;
+const MAX_REVIEWS_PER_GROUP = 40;
 
 const els = Object.fromEntries([
   "practiceView", "reviewView", "answerForm", "answerInput", "answerReveal", "phonetic", "meaning",
@@ -202,7 +204,7 @@ function buildSession(mode = "normal", customConfig = null) {
     const state = getState(word.id);
     return !state.dismissed && state.status === "learning" && state.dueAt <= now;
   });
-  const totalGroups = Math.ceil(words.length / 30);
+  const totalGroups = Math.ceil(words.length / NEW_WORDS_PER_GROUP);
   const selectedGroup = Math.min(Math.max(Number(progress.currentGroup) || 1, 1), totalGroups);
   progress.currentGroup = selectedGroup;
   sessionGroup = selectedGroup;
@@ -221,17 +223,26 @@ function buildSession(mode = "normal", customConfig = null) {
     }));
   } else if (mode === "custom") {
     const config = customConfig || lastCustomConfig || { startGroup: 1, endGroup: totalGroups, filter: "all", limit: 30 };
-    const start = (Math.min(config.startGroup, config.endGroup) - 1) * 30;
-    const end = Math.max(config.startGroup, config.endGroup) * 30;
+    const start = (Math.min(config.startGroup, config.endGroup) - 1) * NEW_WORDS_PER_GROUP;
+    const end = Math.max(config.startGroup, config.endGroup) * NEW_WORDS_PER_GROUP;
     const candidates = words.slice(start, end).filter(word => matchesCustomFilter(word, config.filter));
     session = shuffle(candidates).slice(0, Math.max(1, config.limit || candidates.length));
   } else {
-    const groupStart = (selectedGroup - 1) * 30;
-    const groupWords = words.slice(groupStart, groupStart + 30).filter(word => {
+    const groupStart = (selectedGroup - 1) * NEW_WORDS_PER_GROUP;
+    const groupWords = words.slice(groupStart, groupStart + NEW_WORDS_PER_GROUP).filter(word => {
       const state = getState(word.id);
       return !state.dismissed && state.status === "new";
     });
-    const merged = new Map([...due, ...groupWords].map(word => [word.id, word]));
+    const reviewWords = due
+      .sort((left, right) => {
+        const leftState = getState(left.id);
+        const rightState = getState(right.id);
+        return (leftState.dueAt - rightState.dueAt)
+          || ((rightState.wrongCount || 0) - (leftState.wrongCount || 0))
+          || left.id.localeCompare(right.id);
+      })
+      .slice(0, MAX_REVIEWS_PER_GROUP);
+    const merged = new Map([...reviewWords, ...groupWords].map(word => [word.id, word]));
     session = shuffle([...merged.values()]);
   }
   currentIndex = 0;
@@ -289,7 +300,7 @@ function renderQuestion() {
   els.previousButton.disabled = history.length === 0;
   if (!word) {
     els.startOverlay.hidden = true;
-    const totalGroups = Math.ceil(words.length / 30);
+    const totalGroups = Math.ceil(words.length / NEW_WORDS_PER_GROUP);
     els.instruction.textContent = sessionMode === "normal" ? `第 ${sessionGroup} 组完成` : `${modeLabel()}完成`;
     els.queueLabel.textContent = sessionMode === "normal" ? "本组学习结束" : "本次练习结束";
     els.answerInput.disabled = true;
@@ -825,8 +836,8 @@ function customConfigFromForm() {
 function customCandidateCount() {
   if (!words.length) return 0;
   const config = customConfigFromForm();
-  const start = (Math.min(config.startGroup, config.endGroup) - 1) * 30;
-  const end = Math.max(config.startGroup, config.endGroup) * 30;
+  const start = (Math.min(config.startGroup, config.endGroup) - 1) * NEW_WORDS_PER_GROUP;
+  const end = Math.max(config.startGroup, config.endGroup) * NEW_WORDS_PER_GROUP;
   return words.slice(start, end).filter(word => matchesCustomFilter(word, config.filter)).length;
 }
 
@@ -893,7 +904,7 @@ els.groupSelect.addEventListener("change", () => {
   buildSession();
 });
 els.nextGroupButton.addEventListener("click", () => {
-  const totalGroups = Math.ceil(words.length / 30);
+  const totalGroups = Math.ceil(words.length / NEW_WORDS_PER_GROUP);
   progress.currentGroup = Math.min(sessionGroup + 1, totalGroups);
   els.groupSelect.value = String(progress.currentGroup);
   saveProgress();
@@ -939,10 +950,10 @@ wordListSource
     words = parseWordList(text);
     if (!words.length) throw new Error("词库格式无法识别");
     await restoreServerProgress();
-    const totalGroups = Math.ceil(words.length / 30);
+    const totalGroups = Math.ceil(words.length / NEW_WORDS_PER_GROUP);
     els.groupSelect.innerHTML = Array.from({ length: totalGroups }, (_, index) => {
-      const start = index * 30 + 1;
-      const end = Math.min((index + 1) * 30, words.length);
+      const start = index * NEW_WORDS_PER_GROUP + 1;
+      const end = Math.min((index + 1) * NEW_WORDS_PER_GROUP, words.length);
       return `<option value="${index + 1}">第 ${index + 1} 组 · ${start}-${end}</option>`;
     }).join("");
     const compactGroupOptions = Array.from({ length: totalGroups }, (_, index) => `<option value="${index + 1}">第 ${index + 1} 组</option>`).join("");
