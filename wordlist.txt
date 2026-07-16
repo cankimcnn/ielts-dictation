@@ -27,7 +27,7 @@ P9   295   reproduction   ˌriːprəˈdʌkʃ(ə)n   n. 生殖；繁殖；复制
 P9   1483   crocodile   ˈkrɒkədaɪl   n. 鳄鱼
 P9   1285   constant   ˈkɒnstənt   adj. 恒定的；不变的；持续的
 P9   1512   measurement   ˈmeʒəmənt   n. 衡量；测量
-P9   228   net   nets   n. 网
+P9   228   net   net   n. 网
 P9   17   bacteria   bækˈtɪəriə   n. 细菌
 P1   215   decoration   ˌdekəˈreɪʃn   n. 装饰品；装饰物
 P9   1336   graph   ɡrɑːf   n. 图表；曲线图
@@ -66,7 +66,7 @@ P9   1510   mathematics   ˌmæθəˈmætɪks   n. 数学
 P9   957   coconut   ˈkəʊkənʌt   n. 椰子
 P9   8   airport   ˈeəpɔːt   n. 机场；航空港
 P9   1293   crisis   ˈkraɪsɪs   n. 危机；危急关头
-P9   149   holiday   ˈhɒlədeɪz   n. 假期
+P9   149   holiday   ˈhɒlədeɪ   n. 假期
 P9   1368   note taking   ˈnəʊt teɪkɪŋ   n. 笔记
 P9   1739   space station   ˈspeɪs steɪʃ(ə)n   phrase. 太空站
 P9   1198   poem   ˈpəʊɪm   n. 诗；诗篇
@@ -75,7 +75,7 @@ P9   279   pottery   ˈpɒtəri   n. 陶器；制陶手艺；陶器作坊
 P9   1451   shrimp   ʃrɪmp   n. 虾
 P9   1009   head   hed   n. 头；脑袋；上端；首脑； v. 朝…行进；居首位；领导； adj. 头的；主要的
 P9   695   performance   pəˈfɔːməns   n. 表现；表演；性能
-P9   1359   mammal   ˈmæm(ə)lz   n. 哺乳动物
+P9   1359   mammal   ˈmæm(ə)l   n. 哺乳动物
 P9   134   gift   ɡɪft   n. 礼物；天赋
 P9   1105   town   taʊn   n. 镇；城镇；市镇
 P9   618   human   ˈhjuːmən   adj. 人的；人类的； n. 人；人类
@@ -85,7 +85,7 @@ P1   79   Wednesday   ˈwenzdeɪ   n. 星期三
 P9   899   teaching   ˈtiːtʃɪŋ   n. 教学；授课；教导； v. 教；教导；“teach”的现在分词
 P9   399   toy   tɔɪ   n. 玩具
 P9   838   room   ruːm   n. 房间；空间
-P9   569   exhibition   eksɪˈbɪʃ(ə)nz   n. 展览
+P9   569   exhibition   eksɪˈbɪʃ(ə)n   n. 展览
 P9   234   northeast   ˌnɔːθ ˈiːst   n. 东北； adj. 东北的
 P9   1733   senior advisor   ˈsiːniə ədˈvaɪzə(r)   phrase. 高级顾问；资深督导师
 P9   920   Africa   ˈæfrɪkə   n. 非洲
@@ -93,7 +93,7 @@ P9   367   stress   stres   n. 压力；强调； v. 着重；强调
 P9   307   running   ˈrʌnɪŋ   n. 跑；管理；运作； v. 经营；跑步；“run”的现在分词； adj. 运作中的；流动的；持续的
 P9   76   database   ˈdeɪtəbeɪs   n. 数据库；信息库
 P9   1095   theme   θiːm   n. 题目；主题；话题
-P9   1284   concert   ˈkɒnsəts   n. 音乐会
+P9   1284   concert   ˈkɒnsət   n. 音乐会
 P9   753   rival   ˈraɪvl   n. 竞争者
 P9   1467   automobile   ˈɔːtəməbiːl   n. [车辆]汽车；发动器；[车辆]汽车，发动器
 P9   1089   Sunshade   ˈsʌnʃeɪd   n. 遮阳伞；遮光罩
@@ -178,7 +178,7 @@ P9   994   flute   fluːt   n. 长笛
 P9   813   umbrella   ʌmˈbrelə   n. 伞；雨伞
 P9   1571   headlight   ˈhedlaɪt   n. （汽车等）前灯
 P9   1191   fan   fæn   n. 粉丝；风扇
-P9   626   import   ɪmˈpɔː(r)tɪd   adj.进口的（动词import的过去分词）
+P9   626   import   ɪmˈpɔː(r)t   v. 进口；输入
 P9   1068   shared   ʃeəd   adj. 共享的；共同的； v. 共享；分享；“share”的过去式和过去分词
 P9   702   pilot   ˈpaɪlət   n. 飞行员
 P1   476   collect   kә'lekt   v. 收集, 聚集, 集中, 搜集; a. 由收到者付款的
@@ -260,7 +260,7 @@ P9   302   roof   ruːf   n. 屋顶；顶部
 P9   244   orange   ˈɒrɪndʒ   n. 橙子；橙色； adj. 橙色的
 P9   40   castle   ˈkɑːs(ə)l   n. 城堡
 P9   729   promotion   prəˈməʊʃ(ə)n   n. 促进；提升；推广
-P9   1846   petrol stations   ˈpetrəl ˈsteɪʃ(ə)nz   phrase. 汽车加油站
+P9   1846   petrol station   ˈpetrəl ˈsteɪʃ(ə)n   phrase. 汽车加油站
 P1   12   Thursday   ˈθɜːzdeɪ   n. 星期四
 P9   58   college   ˈkɒlɪdʒ   n. 学院；大学
 P9   1576   cutting   ˈkʌtɪŋ   n. 剪辑
@@ -353,7 +353,7 @@ P9   631   inscription   ɪnˈskrɪpʃn   n. 铭文
 P9   1701   considerably reduce   kənˌsɪdərəbli rɪˈdjuːs   phrase. + v. 大大地减少；显著地降低
 P9   1399   responsibility   rɪˌspɒnsəˈbɪləti   n. 责任；职责
 P9   1742   towns and cities   /taʊnz ænd ˈsɪtiz/   phrase. 城镇和城市
-P9   999   glove   ɡˈlʌvz   n. 手套
+P9   999   glove   ɡlʌv   n. 手套
 P9   1868   a bank statement   ə bæŋk ˈsteɪtmənt   phrase. 银行对账单；银行开具的显示账户交易记录的文件
 P9   1726   rock salt   ˈrɒk sɔːlt   phrase. 石盐；岩盐
 P9   156   India   ˈɪndiə   n. 印度
@@ -367,7 +367,7 @@ P9   1160   sunset   ˈsʌnset   n. 夕阳；落日
 P9   1762   dining room   ˈdaɪnɪŋ ruːm   phrase. （家里或宾馆的）餐厅
 P9   119   flu   fluː   n. 流感；流行性感冒
 P1   482   communication   kəˌmjuːnɪˈkeɪʃ(ə)n   n. 交流；通信
-P9   1407   sign   saɪnd   v. 签名
+P9   1407   sign   saɪn   v. 签名
 P9   801   tourism   ˈtʊərɪzm   n. 旅游业；观光业
 P9   1624   move about   muːv əˈbaʊt   phrase. 走来走去；经常搬家
 P9   911   pack   pæk   v. 包装；收拾行李； n. 包裹；小包
@@ -477,7 +477,7 @@ P9   1300   demand   dɪˈmɑːnd   n. 需求；要求； v. 要求；需求
 P9   30   boot   buːt   n. 靴子
 P9   1802   air conditioning   ˈeə kəndɪʃənɪŋ   phrase. 空调
 P9   401   traditional   trəˈdɪʃən(ə)l   adj. 传统的
-P9   1609   duty-free access   friː ˈentri   免税通道
+P9   1609   duty-free access   ˈdjuːti friː ˈækses   免税通道
 P9   1188   illness   ˈɪlnəs   n. 病；疾病
 P9   719   presentation   ˌprez(ə)nˈteɪʃ(ə)n   n. 报告；展示；陈述
 P9   347   software   ˈsɒftweə(r)   n. 软件
@@ -627,7 +627,7 @@ P9   1020   litter   ˈlɪtə(r)   n. 垃圾；杂物
 P9   1145   potato   pəˈteɪtəʊ   n. 土豆；马铃薯
 P9   355   spice   spaɪs   n.香料
 P9   1503   leak   liːk   n. 漏洞；泄露； v. 漏；泄露
-P1   334   teller   ˈtelәz   n. (银行)出纳员;(投票时的)计票员;讲故事等的人, 讲述者
+P1   334   teller   ˈtelә   n. (银行)出纳员;(投票时的)计票员;讲故事等的人, 讲述者
 P9   1610   Garden Hall   ˈɡɑːdn hɔːl   phrase. 花园大厅；常指用于活动或展览的园内建筑
 P9   1063   satisfactory   ˌsætɪsˈfæktəri   adj. 令人满意的
 P9   1365   military   ˈmɪlətri   adj. 军事的；军用的； n. 军队；武装力量
@@ -930,7 +930,7 @@ P1   139   stairs   n. 楼梯
 P9   938   cabin   ˈkæbɪn   n. 小屋；客舱
 P9   449   writer   ˈraɪtə(r)   n.作者
 P9   1500   humidity   hjuːˈmɪdəti   n. 湿度；湿气
-P1   428   bush   ˈbʊʃɪz   n. 灌木
+P1   428   bush   bʊʃ   n. 灌木
 P9   1265   approach   əˈprəʊtʃ   n. 方法；接近；靠近；路径； v. 接近；靠近；临近；处理
 P9   130   garage   ˈɡærɑːʒ   n. 车库；汽车修理厂
 P9   1660   viewing shelter   ˈvjuːɪŋ ˈʃeltə(r)   phrase. 观测点；观景棚
@@ -1956,7 +1956,7 @@ P9   1574   sex   seks   n.性别
 P1   288   trousers   ˈtraʊzəz   n. 裤子；长裤
 P9   863   actor   ˈæktə(r)   n. 演员；男演员
 P9   1038   nursing   ˈnɜːsɪŋ   n. 护理（工作）；护理行业； v. “nurse”的现在分词
-P1   339   wheelchair   'wi:ltʃeәrz   n. 轮椅
+P1   339   wheelchair   'wi:ltʃeә   n. 轮椅
 P9   1737   smaller areas   sˈmɔːlə ˈeərɪəs   phrase. 较小的区域
 P9   270   plastic   ˈplæstɪk   n. 塑料； adj. 塑料的
 P9   282   printer   ˈprɪntə(r)   n. 打印机

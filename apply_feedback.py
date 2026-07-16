@@ -247,11 +247,18 @@ def main():
     feedback_rows = load_feedback()
     wordlist_changes = update_wordlist(feedback_rows, apply=args.apply)
     audio_changes = update_audio(feedback_rows, wordlist_changes=wordlist_changes, apply=args.apply)
-    failed_ids = {
-        change["id"]
-        for change in [*wordlist_changes, *audio_changes]
-        if change.get("error") or str(change.get("action", "")).startswith("missing")
-    }
+    # 永久性结果：单词已删除、查询为空、或没有可替换的官方音源。
+    # 这些状态重试多少次结果都一样，标记 resolved 以免每次提交反馈都重复处理。
+    permanent_sources = {"no_alternate_official", "no_official_audio"}
+    permanent_actions = {"missing-word", "missing-pronunciation-query"}
+    failed_ids = set()
+    permanent_ids = set()
+    for change in [*wordlist_changes, *audio_changes]:
+        if change.get("source") in permanent_sources or change.get("action") in permanent_actions:
+            permanent_ids.add(change["id"])
+        elif change.get("error"):
+            failed_ids.add(change["id"])
+    permanent_ids -= failed_ids
     resolved_rows = [row for row in feedback_rows if row["id"] not in failed_ids]
     if args.apply and feedback_rows:
         mark_resolved(resolved_rows)
@@ -260,6 +267,7 @@ def main():
         "feedbackCount": len(feedback_rows),
         "resolvedCount": len(resolved_rows) if args.apply else 0,
         "failedCount": len(failed_ids),
+        "permanentCount": len(permanent_ids),
         "wordlistChanges": wordlist_changes,
         "audioChanges": audio_changes,
     }, ensure_ascii=False, indent=2))

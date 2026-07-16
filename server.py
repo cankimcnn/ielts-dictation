@@ -248,9 +248,8 @@ class DictationHandler(SimpleHTTPRequestHandler):
         self.send_error(404)
 
     def end_headers(self):
-        if self.path == "/" or self.path.startswith("/?") or self.path.endswith((".html", ".js", ".css")):
-            self.send_header("Cache-Control", "no-store, max-age=0")
-        if self.path.endswith(".mp3") or ".mp3?" in self.path:
+        path = urllib.parse.urlparse(self.path).path
+        if path == "/" or path.endswith((".html", ".js", ".css", ".json", ".txt", ".mp3")):
             self.send_header("Cache-Control", "no-store, max-age=0")
         super().end_headers()
 
@@ -317,12 +316,22 @@ class DictationHandler(SimpleHTTPRequestHandler):
             return
         meta = payload.get("meta") or {}
         words = payload.get("words") or {}
-        replace = bool(payload.get("replace"))
         attempt = payload.get("attempt")
         try:
             with connect_db() as db:
-                if replace:
-                    db.execute("DELETE FROM word_progress")
+                existing = db.execute("SELECT * FROM app_state WHERE id = 1").fetchone()
+                incoming_updated = int(meta.get("updatedAt", 0))
+                incoming_group = max(1, int(meta.get("currentGroup", 1)))
+                if existing:
+                    attempts = max(existing["attempts"], int(meta.get("attempts", 0)))
+                    correct = max(existing["correct"], int(meta.get("correct", 0)))
+                    current_group = incoming_group if incoming_updated >= existing["updated_at"] else existing["current_group"]
+                    updated_at = max(existing["updated_at"], incoming_updated)
+                else:
+                    attempts = int(meta.get("attempts", 0))
+                    correct = int(meta.get("correct", 0))
+                    current_group = incoming_group
+                    updated_at = incoming_updated
                 db.execute(
                     """
                     INSERT INTO app_state(id, attempts, correct, current_group, updated_at)
@@ -333,12 +342,7 @@ class DictationHandler(SimpleHTTPRequestHandler):
                         current_group=excluded.current_group,
                         updated_at=excluded.updated_at
                     """,
-                    (
-                        int(meta.get("attempts", 0)),
-                        int(meta.get("correct", 0)),
-                        max(1, int(meta.get("currentGroup", 1))),
-                        int(meta.get("updatedAt", 0)),
-                    ),
+                    (attempts, correct, current_group, updated_at),
                 )
                 for word_id, state in words.items():
                     if not isinstance(word_id, str) or not isinstance(state, dict):
@@ -354,6 +358,7 @@ class DictationHandler(SimpleHTTPRequestHandler):
                             wrong_count=excluded.wrong_count,
                             last_answer_at=excluded.last_answer_at,
                             dismissed=excluded.dismissed
+                        WHERE excluded.last_answer_at >= word_progress.last_answer_at
                         """,
                         (
                             word_id,

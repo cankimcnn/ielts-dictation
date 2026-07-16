@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>听写练习</title>
-  <link rel="stylesheet" href="styles.css?v=20260714-01">
+  <link rel="stylesheet" href="styles.css?v=20260716-02">
 </head>
 <body>
   <div id="startOverlay" class="start-overlay">
@@ -169,6 +169,7 @@
       <label>正确词义<textarea id="feedbackSuggestedMeaning" rows="3"></textarea></label>
       <label>发音朗读文本<input id="feedbackPronunciationQuery" type="text" autocomplete="off" spellcheck="false"></label>
       <label>备注<textarea id="feedbackNote" rows="3" placeholder="例如：这个短语应该连读，或这个词义和表格不一致"></textarea></label>
+      <p id="feedbackDialogStatus" class="feedback-dialog-status" hidden></p>
       <div class="dialog-actions custom-actions">
         <button id="submitFeedbackButton" class="primary-button" type="submit">提交反馈</button>
       </div>
@@ -176,7 +177,7 @@
   </dialog>
 
   <audio id="pronunciationAudio" preload="auto"></audio>
-  <script src="wordlist-data.js?v=20260714-01"></script>
-  <script src="app.js?v=20260714-01"></script>
+  <script src="wordlist-data.js?v=20260716-02"></script>
+  <script src="app.js?v=20260716-02"></script>
 </body>
 </html>
