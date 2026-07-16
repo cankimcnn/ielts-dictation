@@ -14,7 +14,7 @@ const els = Object.fromEntries([
   "customStartGroup", "customEndGroup", "customFilter", "customLimit", "customPreview", "startCustomButton",
   "star1FilterOption", "star3FilterOption", "star5FilterOption", "reportButton", "feedbackDialog",
   "feedbackForm", "closeFeedbackButton", "feedbackWordId", "feedbackTerm", "feedbackMeaning",
-  "issuePronunciation", "issueMeaning", "issueSpelling", "feedbackSuggestedTerm",
+  "issuePronunciation", "issueMeaning", "issueSpelling", "feedbackSuggestedTerm", "feedbackDialogStatus",
   "feedbackSuggestedMeaning", "feedbackPronunciationQuery", "feedbackNote", "submitFeedbackButton", "deleteWordButton"
 ].map(id => [id, document.getElementById(id)]));
 els.startOverlay = document.getElementById("startOverlay");
@@ -63,7 +63,7 @@ function saveProgress(wordId = null, attempt = null) {
   progress.updatedAt = Date.now();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
   const changedWords = wordId && progress.words[wordId] ? { [wordId]: progress.words[wordId] } : {};
-  queueServerSync({ meta: progressMeta(), words: changedWords, attempt });
+  queueServerSync({ words: changedWords, attempt });
 }
 
 function progressMeta() {
@@ -89,62 +89,172 @@ function setSyncStatus(text, state = "") {
   els.syncStatus.className = `sync-status ${state}`.trim();
 }
 
-function queueServerSync(payload) {
-  setSyncStatus("正在保存", "pending");
-  serverSyncQueue = serverSyncQueue
-    .then(async () => {
-      const response = await fetch("/api/progress", {
-        method: "POST",
-        headers: apiHeaders(),
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) throw new Error(`同步失败：${response.status}`);
-      setSyncStatus("已保存");
-    })
-    .catch(() => setSyncStatus("本地待同步", "error"));
+let toastTimer = null;
+function showToast(message, isError = false) {
+  let toast = document.getElementById("appToast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "appToast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.className = `app-toast${isError ? " error" : ""}`;
+  requestAnimationFrame(() => toast.classList.add("show"));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
 }
 
-async function uploadAllProgress() {
-  const response = await fetch("/api/progress", {
-    method: "POST",
-    headers: apiHeaders(),
-    body: JSON.stringify({ meta: progressMeta(), words: progress.words || {}, replace: true }),
+function setFeedbackDialogStatus(message = "", isError = false) {
+  els.feedbackDialogStatus.textContent = message;
+  els.feedbackDialogStatus.hidden = !message;
+  els.feedbackDialogStatus.className = `feedback-dialog-status${isError ? " error" : ""}`;
+}
+
+let pendingWords = {};
+let pendingAttempts = [];
+let syncRetryTimer = null;
+let lastServerPull = 0;
+let refreshInFlight = false;
+
+function queueServerSync({ words = {}, attempt = null } = {}) {
+  Object.assign(pendingWords, words);
+  if (attempt) pendingAttempts.push(attempt);
+  flushPendingSync();
+}
+
+function flushPendingSync() {
+  if (syncRetryTimer) { clearTimeout(syncRetryTimer); syncRetryTimer = null; }
+  setSyncStatus("正在保存", "pending");
+  serverSyncQueue = serverSyncQueue.then(async () => {
+    do {
+      const wordsBatch = pendingWords;
+      pendingWords = {};
+      const attempt = pendingAttempts.shift() || null;
+      try {
+        const response = await fetch("/api/progress", {
+          method: "POST",
+          headers: apiHeaders(),
+          body: JSON.stringify({ meta: progressMeta(), words: wordsBatch, attempt }),
+        });
+        if (!response.ok) throw new Error(`同步失败：${response.status}`);
+      } catch {
+        pendingWords = { ...wordsBatch, ...pendingWords };
+        if (attempt) pendingAttempts.unshift(attempt);
+        setSyncStatus("本地待同步，将自动重试", "error");
+        syncRetryTimer = setTimeout(flushPendingSync, 15000);
+        return;
+      }
+    } while (pendingAttempts.length || Object.keys(pendingWords).length);
+    setSyncStatus("已保存");
   });
-  if (!response.ok) throw new Error(`迁移失败：${response.status}`);
+}
+
+function mergeServerProgress(server) {
+  const localWords = progress.words || {};
+  const serverWords = server.words || {};
+  const merged = {};
+  const toUpload = {};
+  let pulledChanges = false;
+  for (const id of new Set([...Object.keys(localWords), ...Object.keys(serverWords)])) {
+    const local = localWords[id];
+    const remote = serverWords[id];
+    if (!remote) { merged[id] = local; toUpload[id] = local; continue; }
+    if (!local) { merged[id] = remote; pulledChanges = true; continue; }
+    if ((local.lastAnswerAt || 0) > (remote.lastAnswerAt || 0)) {
+      merged[id] = local;
+      toUpload[id] = local;
+    } else {
+      merged[id] = remote;
+      if (JSON.stringify(local) !== JSON.stringify(remote)) pulledChanges = true;
+    }
+  }
+  const serverMetaNewer = (server.updatedAt || 0) >= (progress.updatedAt || 0);
+  const nextGroup = serverMetaNewer ? (server.currentGroup || 1) : (progress.currentGroup || 1);
+  if (nextGroup !== (progress.currentGroup || 1)) pulledChanges = true;
+  progress = {
+    words: merged,
+    attempts: Math.max(progress.attempts || 0, server.attempts || 0),
+    correct: Math.max(progress.correct || 0, server.correct || 0),
+    currentGroup: nextGroup,
+    updatedAt: Math.max(progress.updatedAt || 0, server.updatedAt || 0),
+  };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  return { toUpload, pulledChanges };
+}
+
+async function syncFromServer() {
+  const response = await fetch("/api/progress", { headers: apiHeaders() });
+  if (!response.ok) throw new Error(`读取失败：${response.status}`);
+  const server = await response.json();
+  lastServerPull = Date.now();
+  if (!server.exists) {
+    if ((progress.attempts || 0) > 0 || Object.keys(progress.words || {}).length > 0) {
+      if (!progress.updatedAt) progress.updatedAt = Date.now();
+      queueServerSync({ words: progress.words || {} });
+    }
+    return false;
+  }
+  const { toUpload, pulledChanges } = mergeServerProgress(server.progress);
+  if (Object.keys(toUpload).length || Object.keys(pendingWords).length || pendingAttempts.length) {
+    queueServerSync({ words: toUpload });
+  } else {
+    setSyncStatus("已保存");
+  }
+  return pulledChanges;
 }
 
 async function restoreServerProgress() {
   try {
-    const response = await fetch("/api/progress", { headers: apiHeaders() });
-    if (!response.ok) throw new Error(`读取失败：${response.status}`);
-    const server = await response.json();
-    const localHasData = (progress.attempts || 0) > 0 || Object.keys(progress.words || {}).length > 0;
-    if (!server.exists) {
-      if (localHasData) {
-        if (!progress.updatedAt) progress.updatedAt = Date.now();
-        await uploadAllProgress();
-      }
-    } else {
-      const localWordCount = Object.keys(progress.words || {}).length;
-      const serverWordCount = Object.keys(server.progress.words || {}).length;
-      const legacyLocalIsMoreComplete = !progress.updatedAt && localHasData
-        && ((progress.attempts || 0) > (server.progress.attempts || 0) || localWordCount > serverWordCount);
-      if (legacyLocalIsMoreComplete || (progress.updatedAt || 0) > (server.progress.updatedAt || 0)) {
-        progress.updatedAt = Date.now();
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-        await uploadAllProgress();
-      } else {
-        progress = server.progress;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    await syncFromServer();
+  } catch {
+    setSyncStatus("本地待同步，将自动重试", "error");
+    syncRetryTimer = setTimeout(() => refreshFromServer(true), 15000);
+  }
+}
+
+async function refreshWordlist() {
+  try {
+    const response = await fetch("wordlist.txt", { cache: "no-store" });
+    if (!response.ok) return;
+    const fresh = parseWordList(await response.text());
+    if (!fresh.length) return;
+    const byId = new Map(fresh.map(item => [item.id, item]));
+    for (const word of words) {
+      const updated = byId.get(word.id);
+      if (!updated) continue;
+      if (word.term !== updated.term || word.phonetic !== updated.phonetic || word.meaning !== updated.meaning) {
+        word.term = updated.term;
+        word.phonetic = updated.phonetic;
+        word.meaning = updated.meaning;
+        audioBufferCache.delete(word.id);
       }
     }
-    setSyncStatus("已保存");
+  } catch {}
+}
+
+async function refreshFromServer(force = false) {
+  if (refreshInFlight || !words.length) return;
+  if (!force && Date.now() - lastServerPull < 30000) return;
+  refreshInFlight = true;
+  try {
+    const [changed] = await Promise.all([syncFromServer(), refreshWordlist()]);
+    if (changed) {
+      updateStats();
+      if (sessionMode === "normal" && !locked && !els.answerInput.value.trim()) {
+        els.groupSelect.value = String(progress.currentGroup);
+        buildSession();
+      }
+    }
   } catch {
-    setSyncStatus("本地待同步", "error");
+    setSyncStatus("本地待同步，将自动重试", "error");
+  } finally {
+    refreshInFlight = false;
   }
 }
 
 function queueServerReset() {
+  pendingWords = {};
+  pendingAttempts = [];
   setSyncStatus("正在清空", "pending");
   serverSyncQueue = serverSyncQueue
     .then(async () => {
@@ -497,6 +607,7 @@ function openFeedbackDialog() {
   els.feedbackSuggestedMeaning.value = lastAnsweredWord.meaning || "";
   els.feedbackPronunciationQuery.value = lastAnsweredWord.term;
   els.feedbackNote.value = "";
+  setFeedbackDialogStatus("");
   els.submitFeedbackButton.disabled = false;
   els.submitFeedbackButton.textContent = "提交反馈";
   els.deleteWordButton.disabled = false;
@@ -539,14 +650,12 @@ async function submitFeedback(event) {
     const result = await response.json();
     applyFeedbackLocally(payload);
     els.feedbackDialog.close();
-    els.feedback.textContent = result.applyStatus ? "反馈已保存，正在自动应用" : "反馈已保存";
-    els.feedback.className = "feedback correct";
+    showToast(result.applyStatus ? "反馈已保存，正在自动应用（约 10 秒后生效）" : "反馈已保存");
     setSyncStatus(result.applyStatus ? "反馈已保存，正在自动应用" : "反馈已保存");
   } catch (error) {
     els.submitFeedbackButton.disabled = false;
     els.submitFeedbackButton.textContent = "提交反馈";
-    els.feedback.textContent = error.message;
-    els.feedback.className = "feedback incorrect";
+    setFeedbackDialogStatus(`提交失败：${error.message}`, true);
   }
 }
 
@@ -562,6 +671,11 @@ function applyFeedbackLocally(payload) {
   }
   audioBufferCache.delete(word.id);
   audioVersion.set(word.id, Date.now());
+  // 服务器在后台替换音频需要几秒，稍后再失效两次，确保重播时拿到新文件
+  [8000, 25000].forEach(delay => setTimeout(() => {
+    audioBufferCache.delete(word.id);
+    audioVersion.set(word.id, Date.now());
+  }, delay));
 }
 
 async function deleteWordFromCorpus(event) {
@@ -581,22 +695,29 @@ async function deleteWordFromCorpus(event) {
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || `删除失败：${response.status}`);
     words = words.filter(item => item.id !== word.id);
+    const removeIndex = session.findIndex(item => item.id === word.id);
+    if (removeIndex >= 0) {
+      session.splice(removeIndex, 1);
+      if (removeIndex < currentIndex) currentIndex -= 1;
+      history = [];
+    }
     delete progress.words[word.id];
     audioBufferCache.delete(word.id);
     audioVersion.delete(word.id);
     progress.updatedAt = Date.now();
     localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    els.deleteWordButton.disabled = false;
+    els.submitFeedbackButton.disabled = false;
     els.feedbackDialog.close();
     switchView("practice");
-    els.feedback.textContent = "删除成功，已返回听写";
-    els.feedback.className = "feedback correct";
+    showToast(`已删除「${word.term}」，继续听写`);
+    renderQuestion();
     setSyncStatus("已保存");
     updateStats();
   } catch (error) {
     els.deleteWordButton.disabled = false;
     els.submitFeedbackButton.disabled = false;
-    els.feedback.textContent = error.message;
-    els.feedback.className = "feedback incorrect";
+    setFeedbackDialogStatus(`删除失败：${error.message}`, true);
   }
 }
 
@@ -782,6 +903,7 @@ function dismissWrongWord(wordId, options = {}) {
     dueAt: 0,
     wrongCount: 0,
     dismissed: true,
+    lastAnswerAt: Date.now(),
   };
   saveProgress(wordId);
   updateStats();
@@ -940,6 +1062,13 @@ document.addEventListener("keydown", event => {
   if (event.key === "Tab" && !els.settingsDialog.open) { event.preventDefault(); speak(false); }
 });
 if ("speechSynthesis" in window) speechSynthesis.addEventListener("voiceschanged", loadVoices);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  audioBufferCache.clear();
+  refreshFromServer();
+});
+window.addEventListener("pageshow", event => { if (event.persisted) refreshFromServer(); });
+window.addEventListener("online", () => { flushPendingSync(); refreshFromServer(); });
 
 const wordListSource = window.WORDLIST_TEXT
   ? Promise.resolve(window.WORDLIST_TEXT)

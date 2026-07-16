@@ -202,3 +202,31 @@ dialog::backdrop { background: rgba(22, 32, 43, .42); }
   .library-header { align-items: start; flex-direction: column; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+.app-toast {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-12px);
+  background: rgba(22, 101, 52, 0.95);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 15px;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  max-width: min(90vw, 480px);
+  text-align: center;
+}
+.app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.app-toast.error { background: rgba(153, 27, 27, 0.95); }
+
+.feedback-dialog-status {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #166534;
+}
+.feedback-dialog-status.error { color: #b91c1c; }
